@@ -1,2 +1,5 @@
 /STM32CubeIDE_Workspace/.metadata/*
 /STM32CubeIDE_Workspace/RemoteSystemsTempFiles/*
+/STM32F103RBT6 Flasher/mcuispConfig.ini
+/STM32F103RBT6 Flasher/ProgramLogs.txt
+
