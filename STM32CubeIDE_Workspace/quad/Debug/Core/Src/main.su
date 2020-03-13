@@ -1,0 +1,11 @@
+main.c:100:5:main	8	static
+main.c:178:6:SystemClock_Config	72	static
+main.c:213:13:MX_I2C1_Init	8	static
+main.c:245:13:MX_GPIO_Init	40	static
+main.c:266:6:initIMU	32	static
+main.c:298:6:readIMUAccel	32	static
+main.c:321:6:readIMUGyro	32	static
+main.c:352:6:pidStart	16	static
+main.c:374:6:startGps	16	static
+main.c:395:6:HAL_TIM_PeriodElapsedCallback	16	static
+main.c:411:6:Error_Handler	4	static
