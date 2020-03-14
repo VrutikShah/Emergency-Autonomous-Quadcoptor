@@ -62,8 +62,8 @@ quad.bin \
 all: quad.elf secondary-outputs
 
 # Tool invocations
-quad.elf: $(OBJS) $(USER_OBJS) E:\Embedded\ Systems\ and\ Microprocessors\project\bare\ metal\quad\STM32F103RBTX_FLASH.ld
-	arm-none-eabi-g++ -o "quad.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m3 -T"E:\Embedded Systems and Microprocessors\project\bare metal\quad\STM32F103RBTX_FLASH.ld" --specs=nosys.specs -Wl,-Map="quad.map" -Wl,--gc-sections -static --specs=nano.specs -mfloat-abi=soft -mthumb -Wl,--start-group -lc -lm -lstdc++ -lsupc++ -Wl,--end-group
+quad.elf: $(OBJS) $(USER_OBJS) E:\Embedded\ Systems\ and\ Microprocessors\project\bare-metal\STM32CubeIDE_Workspace\quad\STM32F103RBTX_FLASH.ld
+	arm-none-eabi-g++ -o "quad.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m3 -T"E:\Embedded Systems and Microprocessors\project\bare-metal\STM32CubeIDE_Workspace\quad\STM32F103RBTX_FLASH.ld" --specs=nosys.specs -Wl,-Map="quad.map" -Wl,--gc-sections -static --specs=nano.specs -mfloat-abi=soft -mthumb -Wl,--start-group -lc -lm -lstdc++ -lsupc++ -Wl,--end-group
 	@echo 'Finished building target: $@'
 	@echo ' '
 
