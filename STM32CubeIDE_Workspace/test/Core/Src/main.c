@@ -96,7 +96,6 @@ void prints(const char *fmt) {
 			HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_9);
 		}
 		else{
-			HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_9);
 		}
 	}
 }
@@ -128,7 +127,7 @@ void MPU6050_Init(void) {
 
 	// check device ID WHO_AM_I
 	HAL_Delay(1000);
-	prints("initializing4567890");
+//	prints("initializing4567890");
 	HAL_I2C_Mem_Read(&hi2c1, MPU6050_ADDR, WHO_AM_I_REG, 1, &check, 1, 1000);
 
 	if (check == 104) // 0x68 will be returned by the sensor if everything goes well
@@ -154,12 +153,12 @@ void MPU6050_Init(void) {
 		Data = 0x00;
 		HAL_I2C_Mem_Write(&hi2c1, MPU6050_ADDR, GYRO_CONFIG_REG, 1, &Data, 1,
 				1000);
-		prints("Successful Init67890");
+//		prints("Successful Init67890");
 		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_8, GPIO_PIN_RESET);
 		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_9, GPIO_PIN_RESET);
 
 	} else {
-		prints("Failure init34567890");
+//		prints("Failure init34567890");
 		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_8, GPIO_PIN_SET);
 		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_9, GPIO_PIN_SET);
 	}
@@ -276,8 +275,8 @@ int main(void)
 		MPU6050_Read_Accel();
 		MPU6050_Read_Gyro();
 
-		sprintf(buf, '%.2f', Ax);
-		prints(buf);
+//		sprintf(buf, '%.2f........................................', Ax);
+		prints("running loop now890");
 		if(Az> 0){
 			HAL_GPIO_WritePin(GPIOB, GPIO_PIN_8, GPIO_PIN_RESET);
 		}

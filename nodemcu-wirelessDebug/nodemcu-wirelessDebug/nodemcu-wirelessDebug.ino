@@ -53,18 +53,23 @@ void loop() {
     server.handleClient();
     
       while(SUART.available()>0 && clientID == -1){
-        Serial.println(SUART.readString());
+        Serial.println(SUART.read());
       }
    
-    if (SUART.available() > 0 && clientID != -1){
+    if (SUART.available() > 0 ){
+      int l = SUART.available();
       String s = SUART.readString();
       s = s + "\n";
       Serial.print(" Received string from device: ");
       
+      
       char a[40];
       s.toCharArray(a,40);
-      Serial.println(a);
-      webSocket.broadcastTXT( a, sizeof(s)-1); //String has a null terminator that we subtract 1 for.
+      Serial.print(a);
+      Serial.print(" ");
+      Serial.print(l);
+      Serial.println(" bytes");
+//      webSocket.broadcastTXT( a, sizeof(s)-1); //String has a null terminator that we subtract 1 for.
 
       digitalWrite(LED_BUILTIN, HIGH);
     }
