@@ -24,6 +24,8 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "string.h"
+#include "stdarg.h"
+#include "stdio.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -33,6 +35,16 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
+#define MPU6050_ADDR 0xD0
+
+#define SMPLRT_DIV_REG 0x19
+#define GYRO_CONFIG_REG 0x1B
+#define ACCEL_CONFIG_REG 0x1C
+#define ACCEL_XOUT_H_REG 0x3B
+#define TEMP_OUT_H_REG 0x41
+#define GYRO_XOUT_H_REG 0x43
+#define PWR_MGMT_1_REG 0x6B
+#define WHO_AM_I_REG 0x75
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -41,6 +53,8 @@
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
+I2C_HandleTypeDef hi2c1;
+
 TIM_HandleTypeDef htim3;
 
 UART_HandleTypeDef huart3;
@@ -49,6 +63,15 @@ DMA_HandleTypeDef hdma_usart3_tx;
 
 /* USER CODE BEGIN PV */
 uint8_t data[20] = "12345678901234567890"; //= "5234698765";
+int16_t Accel_X_RAW = 0;
+int16_t Accel_Y_RAW = 0;
+int16_t Accel_Z_RAW = 0;
+
+int16_t Gyro_X_RAW = 0;
+int16_t Gyro_Y_RAW = 0;
+int16_t Gyro_Z_RAW = 0;
+
+float Ax, Ay, Az, Gx, Gy, Gz;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -56,6 +79,7 @@ void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_DMA_Init(void);
 static void MX_TIM3_Init(void);
+static void MX_I2C1_Init(void);
 static void MX_USART3_UART_Init(void);
 /* USER CODE BEGIN PFP */
 
@@ -63,9 +87,20 @@ static void MX_USART3_UART_Init(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-void prints(char _out[]) {
-	HAL_UART_Transmit(&huart3, (uint8_t*) _out, strlen(_out), 10);
+void prints(const char *fmt) {
+	char string[20];
+
+	if (0 < sprintf(string, fmt)) // build string
+			{
+		if(HAL_UART_Transmit_DMA(&huart3, (uint8_t*) string, 20) == HAL_OK){
+			HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_9);
+		}
+		else{
+			HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_9);
+		}
+	}
 }
+
 void USART2_IRQHandler(void) {
 	HAL_UART_IRQHandler(&huart3);
 }
@@ -87,7 +122,96 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
 	HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_9);
 	HAL_UART_Receive_DMA(huart, data, 20);
 }
+void MPU6050_Init(void) {
+	uint8_t check;
+	uint8_t Data;
 
+	// check device ID WHO_AM_I
+	HAL_Delay(1000);
+	prints("initializing4567890");
+	HAL_I2C_Mem_Read(&hi2c1, MPU6050_ADDR, WHO_AM_I_REG, 1, &check, 1, 1000);
+
+	if (check == 104) // 0x68 will be returned by the sensor if everything goes well
+			{
+		// power management register 0X6B we should write all 0's to wake the sensor up
+		Data = 0;
+		HAL_I2C_Mem_Write(&hi2c1, MPU6050_ADDR, PWR_MGMT_1_REG, 1, &Data, 1,
+				1000);
+
+		// Set DATA RATE of 1KHz by writing SMPLRT_DIV register
+		Data = 0x07;
+		HAL_I2C_Mem_Write(&hi2c1, MPU6050_ADDR, SMPLRT_DIV_REG, 1, &Data, 1,
+				1000);
+
+		// Set accelerometer configuration in ACCEL_CONFIG Register
+		// XA_ST=0,YA_ST=0,ZA_ST=0, FS_SEL=0 -> � 2g
+		Data = 0x00;
+		HAL_I2C_Mem_Write(&hi2c1, MPU6050_ADDR, ACCEL_CONFIG_REG, 1, &Data, 1,
+				1000);
+
+		// Set Gyroscopic configuration in GYRO_CONFIG Register
+		// XG_ST=0,YG_ST=0,ZG_ST=0, FS_SEL=0 -> � 250 �/s
+		Data = 0x00;
+		HAL_I2C_Mem_Write(&hi2c1, MPU6050_ADDR, GYRO_CONFIG_REG, 1, &Data, 1,
+				1000);
+		prints("Successful Init67890");
+		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_8, GPIO_PIN_RESET);
+		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_9, GPIO_PIN_RESET);
+
+	} else {
+		prints("Failure init34567890");
+		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_8, GPIO_PIN_SET);
+		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_9, GPIO_PIN_SET);
+	}
+
+}
+void MPU6050_Read_Accel(void) {
+	uint8_t Rec_Data[6];
+
+	// Read 6 BYTES of data starting from ACCEL_XOUT_H register
+
+	if(HAL_I2C_Mem_Read(&hi2c1, MPU6050_ADDR, ACCEL_XOUT_H_REG, 1, Rec_Data, 6,
+			1000) == HAL_OK){
+		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_9, GPIO_PIN_RESET);
+	}
+	else{
+		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_9, GPIO_PIN_SET);
+	}
+
+	Accel_X_RAW = (int16_t) (Rec_Data[0] << 8 | Rec_Data[1]);
+	Accel_Y_RAW = (int16_t) (Rec_Data[2] << 8 | Rec_Data[3]);
+	Accel_Z_RAW = (int16_t) (Rec_Data[4] << 8 | Rec_Data[5]);
+
+	/*** convert the RAW values into acceleration in 'g'
+	 we have to divide according to the Full scale value set in FS_SEL
+	 I have configured FS_SEL = 0. So I am dividing by 16384.0
+	 for more details check ACCEL_CONFIG Register              ****/
+
+	Ax = Accel_X_RAW / 16384.0;
+	Ay = Accel_Y_RAW / 16384.0;
+	Az = Accel_Z_RAW / 16384.0;
+}
+void MPU6050_Read_Gyro(void) {
+	uint8_t Rec_Data[6];
+
+	// Read 6 BYTES of data starting from GYRO_XOUT_H register
+
+	HAL_I2C_Mem_Read(&hi2c1, MPU6050_ADDR, GYRO_XOUT_H_REG, 1, Rec_Data, 6,
+			1000);
+
+	Gyro_X_RAW = (int16_t) (Rec_Data[0] << 8 | Rec_Data[1]);
+	Gyro_Y_RAW = (int16_t) (Rec_Data[2] << 8 | Rec_Data[3]);
+	Gyro_Z_RAW = (int16_t) (Rec_Data[4] << 8 | Rec_Data[5]);
+
+	/*** convert the RAW values into dps (�/s)
+	 we have to divide according to the Full scale value set in FS_SEL
+	 I have configured FS_SEL = 0. So I am dividing by 131.0
+	 for more details check GYRO_CONFIG Register              ****/
+
+	Gx = Gyro_X_RAW / 131.0;
+	Gy = Gyro_Y_RAW / 131.0;
+	Gz = Gyro_Z_RAW / 131.0;
+}
 /* USER CODE END 0 */
 
 /**
@@ -120,6 +244,7 @@ int main(void)
   MX_GPIO_Init();
   MX_DMA_Init();
   MX_TIM3_Init();
+  MX_I2C1_Init();
   MX_USART3_UART_Init();
   /* USER CODE BEGIN 2 */
 
@@ -141,11 +266,26 @@ int main(void)
 	} else {
 		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_8, GPIO_PIN_RESET);
 	}
+	MPU6050_Init();
+	char buf[20];
 	while (1) {
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-//
+
+		MPU6050_Read_Accel();
+		MPU6050_Read_Gyro();
+
+		sprintf(buf, '%.2f', Ax);
+		prints(buf);
+		if(Az> 0){
+			HAL_GPIO_WritePin(GPIOB, GPIO_PIN_8, GPIO_PIN_RESET);
+		}
+		else{
+			HAL_GPIO_WritePin(GPIOB, GPIO_PIN_8, GPIO_PIN_SET);
+		}
+//		HAL_Delay(1500);
+
 //		if (x == 2500) {
 //			sign = -1;
 //		}
@@ -195,6 +335,40 @@ void SystemClock_Config(void)
   {
     Error_Handler();
   }
+}
+
+/**
+  * @brief I2C1 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_I2C1_Init(void)
+{
+
+  /* USER CODE BEGIN I2C1_Init 0 */
+
+  /* USER CODE END I2C1_Init 0 */
+
+  /* USER CODE BEGIN I2C1_Init 1 */
+
+  /* USER CODE END I2C1_Init 1 */
+  hi2c1.Instance = I2C1;
+  hi2c1.Init.ClockSpeed = 100000;
+  hi2c1.Init.DutyCycle = I2C_DUTYCYCLE_2;
+  hi2c1.Init.OwnAddress1 = 0;
+  hi2c1.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
+  hi2c1.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
+  hi2c1.Init.OwnAddress2 = 0;
+  hi2c1.Init.GeneralCallMode = I2C_GENERALCALL_DISABLE;
+  hi2c1.Init.NoStretchMode = I2C_NOSTRETCH_DISABLE;
+  if (HAL_I2C_Init(&hi2c1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN I2C1_Init 2 */
+
+  /* USER CODE END I2C1_Init 2 */
+
 }
 
 /**
