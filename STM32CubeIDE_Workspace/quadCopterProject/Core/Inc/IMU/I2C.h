@@ -14,7 +14,7 @@
 #define MPU6050
 
 #ifdef STM32_HAL
-#define UNUSED(x) ((void)(x))
+//#define UNUSED(x) ((void)(x))
 
 #define delay_ms  HAL_Delay
 

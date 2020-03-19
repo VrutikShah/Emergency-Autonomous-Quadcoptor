@@ -23,11 +23,11 @@
 #include "task.h"
 #include "main.h"
 #include "cmsis_os.h"
-#include "IMU/imu.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include "constDefines.h"
+#include "IMU/imu.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -37,7 +37,6 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -52,6 +51,10 @@
 /* Definitions for pidLoop */
 osThreadId_t pidLoopHandle;
 const osThreadAttr_t pidLoop_attributes = { .name = "pidLoop", .priority =
+		(osPriority_t) osPriorityRealtime1, .stack_size = 128 * 4 };
+/* Definitions for imuLoop */
+osThreadId_t imuLoopHandle;
+const osThreadAttr_t imuLoop_attributes = { .name = "imuLoop", .priority =
 		(osPriority_t) osPriorityRealtime, .stack_size = 128 * 4 };
 
 /* Private function prototypes -----------------------------------------------*/
@@ -60,6 +63,7 @@ const osThreadAttr_t pidLoop_attributes = { .name = "pidLoop", .priority =
 /* USER CODE END FunctionPrototypes */
 
 void pidLoopStart(void *argument);
+void imuLoopBegin(void *argument);
 
 void MX_FREERTOS_Init(void); /* (MISRA C 2004 rule 8.1) */
 
@@ -93,6 +97,9 @@ void MX_FREERTOS_Init(void) {
 	/* creation of pidLoop */
 	pidLoopHandle = osThreadNew(pidLoopStart, NULL, &pidLoop_attributes);
 
+	/* creation of imuLoop */
+	imuLoopHandle = osThreadNew(imuLoopBegin, NULL, &imuLoop_attributes);
+
 	/* USER CODE BEGIN RTOS_THREADS */
 	/* add threads, ... */
 	/* USER CODE END RTOS_THREADS */
@@ -110,10 +117,28 @@ void pidLoopStart(void *argument) {
 	/* USER CODE BEGIN pidLoopStart */
 	/* Infinite loop */
 	for (;;) {
-		Read_DMP();
-		osDelay(50);
+		computePID();
+		setMotors();
+		osDelay(pidLoopDelay);
 	}
 	/* USER CODE END pidLoopStart */
+}
+
+/* USER CODE BEGIN Header_imuLoopBegin */
+/**
+ * @brief Function implementing the imuLoop thread.
+ * @param argument: Not used
+ * @retval None
+ */
+/* USER CODE END Header_imuLoopBegin */
+void imuLoopBegin(void *argument) {
+	/* USER CODE BEGIN imuLoopBegin */
+	/* Infinite loop */
+	for (;;) {
+		Read_DMP();
+		osDelay(imuLoopDelay);
+	}
+	/* USER CODE END imuLoopBegin */
 }
 
 /* Private application code --------------------------------------------------*/

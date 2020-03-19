@@ -17,10 +17,21 @@
 #define q30  1073741824.0f
 
 short gyro[3], accel[3], sensors;
-float Pitch;
-float pitch, roll, yaw;
+//float Pitch;
+float angles[4] = { 0.0, 0.0, 0.0, 0.0 };
 float q0 = 1.0f, q1 = 0.0f, q2 = 0.0f, q3 = 0.0f;
 static signed char gyro_orientation[9] = { -1, 0, 0, 0, -1, 0, 0, 0, 1 };
+uint16_t output[4] = { 1500, 1500, 1500, 1500 };
+
+float Kp[4] = { 1.3, 1.3, 1.3, 0 };
+float Kd[4] = { 20, 20, 20, 0 };
+//roll, pitch, yaw, z axis
+float setpoint[4] = { 0.0, 0.0, 0.0, 0.0 };
+float error[4] = { 0.0, 0.0, 0.0, 0.0 };
+float preverror[4] = { 0.0, 0.0, 0.0, 0.0 };
+float errorDiff[4] = { 0.0, 0.0, 0.0, 0.0 };
+uint16_t maxVal[4] = { 2500, 2500, 2500, 2500 };
+uint16_t minVal[4] = { 500, 500, 500, 500 };
 
 static unsigned short inv_row_2_scale(const signed char *row) {
 	unsigned short b;
@@ -238,9 +249,8 @@ void MPU6050_setI2CBypassEnabled(uint8_t enabled) {
  *功　　能:	    初始化 	MPU6050 以进入可用状态。
  *******************************************************************************/
 void MPU6050_initialize(void) {
-	uint8_t x;
 
-	x = MPU6050_getDeviceID();
+	MPU6050_getDeviceID();
 
 	MPU6050_setClockSource(MPU6050_CLOCK_PLL_XGYRO); //设置时钟
 	MPU6050_setFullScaleGyroRange(MPU6050_GYRO_FS_2000); //陀螺仪最大量程 +-1000度每秒
@@ -256,6 +266,37 @@ void MPU6050_initialize(void) {
  返回  值：无
  作    者：平衡小车之家
  **************************************************************************/
+void computePID(void) {
+
+	for (int i = 0; i < 4; i++) {
+		error[i] = setpoint[i] - angles[i];
+		errorDiff[i] = error[i] - preverror[i]; // not divding by loop time as thats just scaling.
+
+		output[i] = 1500 + (error[i] * Kp[i] + errorDiff[i] * Kd[i]);
+//		if (output[i] > maxVal[i]) {
+//			output[i] = maxVal[i];
+//		} else if (output[i] < minVal[i]) {
+//			output[i] = minVal[i];
+//		}
+		preverror[i] = error[i];
+	}
+
+}
+void escSet(uint32_t channel, uint16_t value) {
+	__HAL_TIM_SET_COMPARE(&htim1, channel, value);
+}
+void setMotors(void){
+	uint8_t outs[4] = {
+			output[3] - output[2] + output[0] - output[2],
+			output[3] + output[2] + output[0] + output[2],
+			output[3] + output[2] - output[0] - output[2],
+			output[3] - output[2] - output[0] + output[2]
+	};
+	escSet(TIMER_CHANNEL_1, outs[0]);
+	escSet(TIMER_CHANNEL_2, outs[1]);
+	escSet(TIMER_CHANNEL_3, outs[2]);
+	escSet(TIMER_CHANNEL_4, outs[3]);
+}
 void DMP_Init(void) {
 
 	uint8_t x;
@@ -302,6 +343,7 @@ void DMP_Init(void) {
 void Read_DMP(void) {
 	unsigned long sensor_timestamp;
 	unsigned char more;
+
 	long quat[4];
 
 	dmp_read_fifo(gyro, accel, quat, &sensor_timestamp, &sensors, &more);
@@ -321,11 +363,11 @@ void Read_DMP(void) {
 		t2 = t2 > 1.0 ? 1.0 : t2;
 		t2 = t2 < -1.0 ? -1.0 : t2;
 
-		pitch = asin(t2)*57.3;
-		roll = atan2(t3, t4)*57.3;
-		yaw = atan2(t1, t0)*57.3;
-
-		Pitch = sinf(-2 * q1 * q3 + 2 * q0 * q2) * 57.3;
+		angles[0] = atan2(t3, t4) * 57.3; //roll
+		angles[1] = asin(t2) * 57.3; //pitch
+		angles[2] = atan2(t1, t0) * 57.3; //yaw
+		return angles;
+//		Pitch = sinf(-2 * q1 * q3 + 2 * q0 * q2) * 57.3;
 	}
 
 }
