@@ -371,6 +371,7 @@ void MPU6050_getlastMotion6(int16_t* ax, int16_t* ay,
 uint8_t MPU6050_getDeviceID(void); //读取MPU6050的ID
 void MPU6050_InitGyro_Offset(void);//初始化陀螺仪偏置
 void DMP_Init(void);
+void calibrateIMU(void);
 void computePID(void);
 void Read_DMP(void);
 void setMotors();

@@ -3,7 +3,7 @@
 #include "IMU/I2C.h"
 #include "IMU/imu.h"
 #include "string.h" //for reset buffer
-
+#include "tim.h"
 #define PRINT_ACCEL     (0x01)
 #define PRINT_GYRO      (0x02)
 #define PRINT_QUAT      (0x04)
@@ -20,16 +20,18 @@ short gyro[3], accel[3], sensors;
 //float Pitch;
 float angles[4] = { 0.0, 0.0, 0.0, 0.0 };
 float q0 = 1.0f, q1 = 0.0f, q2 = 0.0f, q3 = 0.0f;
+uint16_t outs[4];
 static signed char gyro_orientation[9] = { -1, 0, 0, 0, -1, 0, 0, 0, 1 };
-uint16_t output[4] = { 1500, 1500, 1500, 1500 };
+int16_t output[4] = { 0, 0, 0, 0 };
 
-float Kp[4] = { 1.3, 1.3, 1.3, 0 };
-float Kd[4] = { 20, 20, 20, 0 };
+float Kp[4] = { 20, 20, 20, 0 };
+float Kd[4] = { 120, 120, 120, 0 };
 //roll, pitch, yaw, z axis
 float setpoint[4] = { 0.0, 0.0, 0.0, 0.0 };
 float error[4] = { 0.0, 0.0, 0.0, 0.0 };
 float preverror[4] = { 0.0, 0.0, 0.0, 0.0 };
 float errorDiff[4] = { 0.0, 0.0, 0.0, 0.0 };
+float calibrators[4] = { 0.0, 0.0, 0.0, 0.0 };
 uint16_t maxVal[4] = { 2500, 2500, 2500, 2500 };
 uint16_t minVal[4] = { 500, 500, 500, 500 };
 
@@ -266,13 +268,29 @@ void MPU6050_initialize(void) {
  返回  值：无
  作    者：平衡小车之家
  **************************************************************************/
-void computePID(void) {
+void calibrateIMU(void) {
 
+	for (int i = 0; i < 378; i++) {
+		Read_DMP();
+
+		HAL_Delay(45);
+	}
+//	run_self_test();
+//	Read_DMP();
 	for (int i = 0; i < 4; i++) {
-		error[i] = setpoint[i] - angles[i];
+		calibrators[i] = angles[i];
+	}
+}
+void computePID(void) {
+	if (setpoint[0] - angles[0] + calibrators[0] - preverror[0] == 0) {
+		return;
+	}
+	//forward right positive
+	for (int i = 0; i < 4; i++) {
+		error[i] = setpoint[i] - (angles[i] - calibrators[i]);
 		errorDiff[i] = error[i] - preverror[i]; // not divding by loop time as thats just scaling.
 
-		output[i] = 1500 + (error[i] * Kp[i] + errorDiff[i] * Kd[i]);
+		output[i] = (error[i] * Kp[i] + errorDiff[i] * Kd[i]);
 //		if (output[i] > maxVal[i]) {
 //			output[i] = maxVal[i];
 //		} else if (output[i] < minVal[i]) {
@@ -280,22 +298,27 @@ void computePID(void) {
 //		}
 		preverror[i] = error[i];
 	}
+//	output[2] = 0;
+	const int scale = 14;
+	const int bias = 10000;
+	outs[0] = bias + (output[3] - output[1] - output[0] - output[2]) * scale;
+	outs[1] = bias + (output[3] + output[1] - output[0] + output[2]) * scale;
+	outs[2] = bias + (output[3] - output[1] + output[0] + output[2]) * scale;
+	outs[3] = bias + (output[3] + output[1] + output[0] - output[2]) * scale;
 
 }
-void escSet(uint32_t channel, uint16_t value) {
+void escSet1(uint32_t channel, uint16_t value) {
 	__HAL_TIM_SET_COMPARE(&htim1, channel, value);
 }
-void setMotors(void){
-	uint8_t outs[4] = {
-			output[3] - output[2] + output[0] - output[2],
-			output[3] + output[2] + output[0] + output[2],
-			output[3] + output[2] - output[0] - output[2],
-			output[3] - output[2] - output[0] + output[2]
-	};
-	escSet(TIMER_CHANNEL_1, outs[0]);
-	escSet(TIMER_CHANNEL_2, outs[1]);
-	escSet(TIMER_CHANNEL_3, outs[2]);
-	escSet(TIMER_CHANNEL_4, outs[3]);
+void setMotors(void) {
+
+	// pitch, roll. yaw, throttle
+	//   0 ,  1   , 2,   3
+
+	escSet1(TIM_CHANNEL_1, outs[0]);
+	escSet1(TIM_CHANNEL_2, outs[1]);
+	escSet1(TIM_CHANNEL_3, outs[2]);
+	escSet1(TIM_CHANNEL_4, outs[3]);
 }
 void DMP_Init(void) {
 
@@ -310,27 +333,26 @@ void DMP_Init(void) {
 		NVIC_SystemReset();
 	x = mpu_init(NULL);
 	if (!x) {
-		if (!mpu_set_sensors(INV_XYZ_GYRO | INV_XYZ_ACCEL))
+		while (mpu_set_sensors(INV_XYZ_GYRO | INV_XYZ_ACCEL))
 			log_i("mpu_set_sensor complete ......\r\n");
-		if (!mpu_configure_fifo(INV_XYZ_GYRO | INV_XYZ_ACCEL))
+		while (mpu_configure_fifo(INV_XYZ_GYRO | INV_XYZ_ACCEL))
 			log_i("mpu_configure_fifo complete ......\r\n");
-		if (!mpu_set_sample_rate(DEFAULT_MPU_HZ))
+		while (mpu_set_sample_rate(DEFAULT_MPU_HZ))
 			log_i("mpu_set_sample_rate complete ......\r\n");
-		if (!dmp_load_motion_driver_firmware())
+		while (dmp_load_motion_driver_firmware())
 			log_i("dmp_load_motion_driver_firmware complete ......\r\n");
-		if (!dmp_set_orientation(
+		while (dmp_set_orientation(
 				inv_orientation_matrix_to_scalar(gyro_orientation)))
 			log_i("dmp_set_orientation complete ......\r\n");
-		if (!dmp_enable_feature(
-				DMP_FEATURE_6X_LP_QUAT | DMP_FEATURE_TAP |
-				DMP_FEATURE_ANDROID_ORIENT | DMP_FEATURE_SEND_RAW_ACCEL
+		while (dmp_enable_feature(
+				DMP_FEATURE_6X_LP_QUAT | DMP_FEATURE_SEND_RAW_ACCEL
 						| DMP_FEATURE_SEND_CAL_GYRO |
 						DMP_FEATURE_GYRO_CAL))
 			log_i("dmp_enable_feature complete ......\r\n");
-		if (!dmp_set_fifo_rate(DEFAULT_MPU_HZ))
+		while (dmp_set_fifo_rate(DEFAULT_MPU_HZ))
 			log_i("dmp_set_fifo_rate complete ......\r\n");
 		run_self_test();
-		if (!mpu_set_dmp_state(1))
+		while (mpu_set_dmp_state(1))
 			log_i("mpu_set_dmp_state complete ......\r\n");
 	}
 }
@@ -366,7 +388,7 @@ void Read_DMP(void) {
 		angles[0] = atan2(t3, t4) * 57.3; //roll
 		angles[1] = asin(t2) * 57.3; //pitch
 		angles[2] = atan2(t1, t0) * 57.3; //yaw
-		return angles;
+
 //		Pitch = sinf(-2 * q1 * q3 + 2 * q0 * q2) * 57.3;
 	}
 

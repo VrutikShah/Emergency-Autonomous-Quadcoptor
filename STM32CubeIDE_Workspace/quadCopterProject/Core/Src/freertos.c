@@ -25,7 +25,7 @@
 #include "cmsis_os.h"
 
 /* Private includes ----------------------------------------------------------*/
-/* USER CODE BEGIN Includes */
+/* USER CODE BEGIN Includes */     
 #include "constDefines.h"
 #include "IMU/imu.h"
 /* USER CODE END Includes */
@@ -50,12 +50,11 @@
 /* USER CODE END Variables */
 /* Definitions for pidLoop */
 osThreadId_t pidLoopHandle;
-const osThreadAttr_t pidLoop_attributes = { .name = "pidLoop", .priority =
-		(osPriority_t) osPriorityRealtime1, .stack_size = 128 * 4 };
-/* Definitions for imuLoop */
-osThreadId_t imuLoopHandle;
-const osThreadAttr_t imuLoop_attributes = { .name = "imuLoop", .priority =
-		(osPriority_t) osPriorityRealtime, .stack_size = 128 * 4 };
+const osThreadAttr_t pidLoop_attributes = {
+  .name = "pidLoop",
+  .priority = (osPriority_t) osPriorityRealtime1,
+  .stack_size = 128 * 4
+};
 
 /* Private function prototypes -----------------------------------------------*/
 /* USER CODE BEGIN FunctionPrototypes */
@@ -63,46 +62,42 @@ const osThreadAttr_t imuLoop_attributes = { .name = "imuLoop", .priority =
 /* USER CODE END FunctionPrototypes */
 
 void pidLoopStart(void *argument);
-void imuLoopBegin(void *argument);
 
 void MX_FREERTOS_Init(void); /* (MISRA C 2004 rule 8.1) */
 
 /**
- * @brief  FreeRTOS initialization
- * @param  None
- * @retval None
- */
+  * @brief  FreeRTOS initialization
+  * @param  None
+  * @retval None
+  */
 void MX_FREERTOS_Init(void) {
-	/* USER CODE BEGIN Init */
+  /* USER CODE BEGIN Init */
 
-	/* USER CODE END Init */
+  /* USER CODE END Init */
 
-	/* USER CODE BEGIN RTOS_MUTEX */
+  /* USER CODE BEGIN RTOS_MUTEX */
 	/* add mutexes, ... */
-	/* USER CODE END RTOS_MUTEX */
+  /* USER CODE END RTOS_MUTEX */
 
-	/* USER CODE BEGIN RTOS_SEMAPHORES */
+  /* USER CODE BEGIN RTOS_SEMAPHORES */
 	/* add semaphores, ... */
-	/* USER CODE END RTOS_SEMAPHORES */
+  /* USER CODE END RTOS_SEMAPHORES */
 
-	/* USER CODE BEGIN RTOS_TIMERS */
+  /* USER CODE BEGIN RTOS_TIMERS */
 	/* start timers, add new ones, ... */
-	/* USER CODE END RTOS_TIMERS */
+  /* USER CODE END RTOS_TIMERS */
 
-	/* USER CODE BEGIN RTOS_QUEUES */
+  /* USER CODE BEGIN RTOS_QUEUES */
 	/* add queues, ... */
-	/* USER CODE END RTOS_QUEUES */
+  /* USER CODE END RTOS_QUEUES */
 
-	/* Create the thread(s) */
-	/* creation of pidLoop */
-	pidLoopHandle = osThreadNew(pidLoopStart, NULL, &pidLoop_attributes);
+  /* Create the thread(s) */
+  /* creation of pidLoop */
+  pidLoopHandle = osThreadNew(pidLoopStart, NULL, &pidLoop_attributes);
 
-	/* creation of imuLoop */
-	imuLoopHandle = osThreadNew(imuLoopBegin, NULL, &imuLoop_attributes);
-
-	/* USER CODE BEGIN RTOS_THREADS */
+  /* USER CODE BEGIN RTOS_THREADS */
 	/* add threads, ... */
-	/* USER CODE END RTOS_THREADS */
+  /* USER CODE END RTOS_THREADS */
 
 }
 
@@ -113,32 +108,17 @@ void MX_FREERTOS_Init(void) {
  * @retval None
  */
 /* USER CODE END Header_pidLoopStart */
-void pidLoopStart(void *argument) {
-	/* USER CODE BEGIN pidLoopStart */
+void pidLoopStart(void *argument)
+{
+  /* USER CODE BEGIN pidLoopStart */
 	/* Infinite loop */
 	for (;;) {
+		Read_DMP();
 		computePID();
 		setMotors();
 		osDelay(pidLoopDelay);
 	}
-	/* USER CODE END pidLoopStart */
-}
-
-/* USER CODE BEGIN Header_imuLoopBegin */
-/**
- * @brief Function implementing the imuLoop thread.
- * @param argument: Not used
- * @retval None
- */
-/* USER CODE END Header_imuLoopBegin */
-void imuLoopBegin(void *argument) {
-	/* USER CODE BEGIN imuLoopBegin */
-	/* Infinite loop */
-	for (;;) {
-		Read_DMP();
-		osDelay(imuLoopDelay);
-	}
-	/* USER CODE END imuLoopBegin */
+  /* USER CODE END pidLoopStart */
 }
 
 /* Private application code --------------------------------------------------*/

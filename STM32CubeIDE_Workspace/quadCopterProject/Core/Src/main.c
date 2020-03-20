@@ -31,6 +31,7 @@
 #include "math.h"
 #include "stdlib.h"
 #include "IMU/imu.h"
+#include "constDefines.h"
 
 /* USER CODE END Includes */
 
@@ -92,16 +93,18 @@ void initUART(void) {
 
 }
 
-
+void escSet(uint32_t channel, uint16_t value) {
+	__HAL_TIM_SET_COMPARE(&htim1, channel, value);
+}
 void initMotors(void) {
-//	HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
-//	HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_2);
-//	HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_3);
-//	HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_4);
-//	escSet(TIM_CHANNEL_1, 500);
-//	escSet(TIM_CHANNEL_2, 500);
-//	escSet(TIM_CHANNEL_3, 500);
-//	escSet(TIM_CHANNEL_4, 500);
+	HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
+	HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_2);
+	HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_3);
+	HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_4);
+	escSet(TIM_CHANNEL_1, 500);
+	escSet(TIM_CHANNEL_2, 500);
+	escSet(TIM_CHANNEL_3, 500);
+	escSet(TIM_CHANNEL_4, 500);
 //	blinkLED(5, 1000);
 }
 void initIMU() {
@@ -114,10 +117,11 @@ void droneInit(void) {
 	initUART();
 	initIMU();
 
-	blinkLED(50, 2000);
+	calibrateIMU();
+
+	blinkLED(50, 1000);
 
 }
-
 
 /* USER CODE END 0 */
 
@@ -155,10 +159,10 @@ int main(void) {
 	/* USER CODE END 2 */
 
 	/* Init scheduler */
-	osKernelInitialize(); /* Call init function for freertos objects (in freertos.c) */
+//	osKernelInitialize(); /* Call init function for freertos objects (in freertos.c) */
 	MX_FREERTOS_Init();
 	/* Start scheduler */
-	osKernelStart();
+//	osKernelStart();
 
 	/* We should never get here as control is now taken by the scheduler */
 	/* Infinite loop */
@@ -168,7 +172,10 @@ int main(void) {
 		/* USER CODE END WHILE */
 
 		/* USER CODE BEGIN 3 */
-
+		Read_DMP();
+		computePID();
+		setMotors();
+		HAL_Delay(pidLoopDelay);
 	}
 	/* USER CODE END 3 */
 }
