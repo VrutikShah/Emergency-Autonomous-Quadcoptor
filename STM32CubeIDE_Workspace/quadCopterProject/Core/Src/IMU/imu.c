@@ -2,8 +2,10 @@
 #include "IMU/inv_mpu_dmp_motion_driver.h"
 #include "IMU/I2C.h"
 #include "IMU/imu.h"
+#include "usart.h"
 #include "string.h" //for reset buffer
 #include "tim.h"
+#include "constDefines.h"
 #define PRINT_ACCEL     (0x01)
 #define PRINT_GYRO      (0x02)
 #define PRINT_QUAT      (0x04)
@@ -24,16 +26,6 @@ uint16_t outs[4];
 static signed char gyro_orientation[9] = { -1, 0, 0, 0, -1, 0, 0, 0, 1 };
 int16_t output[4] = { 0, 0, 0, 0 };
 
-float Kp[4] = { 20, 20, 20, 0 };
-float Kd[4] = { 120, 120, 120, 0 };
-//roll, pitch, yaw, z axis
-float setpoint[4] = { 0.0, 0.0, 0.0, 0.0 };
-float error[4] = { 0.0, 0.0, 0.0, 0.0 };
-float preverror[4] = { 0.0, 0.0, 0.0, 0.0 };
-float errorDiff[4] = { 0.0, 0.0, 0.0, 0.0 };
-float calibrators[4] = { 0.0, 0.0, 0.0, 0.0 };
-uint16_t maxVal[4] = { 2500, 2500, 2500, 2500 };
-uint16_t minVal[4] = { 500, 500, 500, 500 };
 
 static unsigned short inv_row_2_scale(const signed char *row) {
 	unsigned short b;
@@ -268,18 +260,33 @@ void MPU6050_initialize(void) {
  返回  值：无
  作    者：平衡小车之家
  **************************************************************************/
-void calibrateIMU(void) {
 
+float Kp[4] = {2.5, 2.5, 2.5, 0 };
+float Kd[4] = { 20, 20, 20, 0 };
+//roll, pitch, yaw, z axis
+float setpoint[4] = { 0.0, 0.0, 0.0, 0.0 };
+float error[4] = { 0.0, 0.0, 0.0, 0.0 };
+float preverror[4] = { 0.0, 0.0, 0.0, 0.0 };
+float errorDiff[4] = { 0.0, 0.0, 0.0, 0.0 };
+float calibrators[4] = { 0.0, 0.0, 0.0, 0.0 };
+uint16_t maxVal[4] = { 2500, 2500, 2500, 2500 };
+uint16_t minVal[4] = { 500, 500, 500, 500 };
+
+void calibrateIMU(void) {
+	uint8_t debugData[] = IMU_CALIBRATING;
+	HAL_UART_Transmit_DMA(&huart3, debugData, sizeof(debugData));
 	for (int i = 0; i < 378; i++) {
 		Read_DMP();
 
 		HAL_Delay(45);
 	}
-//	run_self_test();
-//	Read_DMP();
+	run_self_test();
+	Read_DMP();
 	for (int i = 0; i < 4; i++) {
 		calibrators[i] = angles[i];
 	}
+	uint8_t debugData1[] = IMU_READY;
+	HAL_UART_Transmit_DMA(&huart3, debugData1, sizeof(debugData1));
 }
 void computePID(void) {
 	if (setpoint[0] - angles[0] + calibrators[0] - preverror[0] == 0) {
@@ -299,12 +306,21 @@ void computePID(void) {
 		preverror[i] = error[i];
 	}
 //	output[2] = 0;
-	const int scale = 14;
-	const int bias = 10000;
+	const int scale = 1;
+	const int bias = 1500;
 	outs[0] = bias + (output[3] - output[1] - output[0] - output[2]) * scale;
 	outs[1] = bias + (output[3] + output[1] - output[0] + output[2]) * scale;
 	outs[2] = bias + (output[3] - output[1] + output[0] + output[2]) * scale;
 	outs[3] = bias + (output[3] + output[1] + output[0] - output[2]) * scale;
+
+}
+void debugIMU() {
+	uint8_t debugData[30];
+	snprintf(debugData,30, "     <;%d;%d;%d;%d;>", outs[0], outs[1], outs[2], outs[3]);
+
+
+	HAL_UART_Transmit_DMA(&huart3, debugData, sizeof(debugData));
+	HAL_Delay(pidLoopDelay);
 
 }
 void escSet1(uint32_t channel, uint16_t value) {

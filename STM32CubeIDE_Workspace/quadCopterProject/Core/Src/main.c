@@ -21,8 +21,10 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "cmsis_os.h"
+#include "dma.h"
 #include "i2c.h"
 #include "tim.h"
+#include "usart.h"
 #include "gpio.h"
 
 /* Private includes ----------------------------------------------------------*/
@@ -54,6 +56,9 @@
 
 /* USER CODE BEGIN PV */
 uint8_t receivedData[20] = "12345678901234567890";
+uint8_t dataTypeToReturn = 255;
+int motorsInit = 0;
+int x = 0;
 
 //PD controller parameters
 
@@ -86,10 +91,10 @@ void blinkLED(int numberOn, int duration) {
 
 }
 void initUART(void) {
-//	while (HAL_UART_Receive_DMA(&huart3, receivedData, 20) != HAL_OK) {
-//		blinkLED(2, 25);
-//	}
-//	blinkLED(2, 1000);
+	while (HAL_UART_Receive_DMA(&huart3, receivedData, 20) != HAL_OK) {
+		blinkLED(2, 25);
+	}
+	blinkLED(2, 1000);
 
 }
 
@@ -105,20 +110,47 @@ void initMotors(void) {
 	escSet(TIM_CHANNEL_2, 500);
 	escSet(TIM_CHANNEL_3, 500);
 	escSet(TIM_CHANNEL_4, 500);
+	uint8_t debugData[] = MOTORS_INIT;
+	HAL_UART_Transmit_DMA(&huart3, debugData, sizeof(debugData));
 //	blinkLED(5, 1000);
 }
+
 void initIMU() {
+	uint8_t debugData[] = IMU_INIT;
+	HAL_UART_Transmit_DMA(&huart3, debugData, sizeof(debugData));
 	MPU6050_initialize();
 	DMP_Init();
+
 }
+void HAL_UART_RxHalfCpltCallback(UART_HandleTypeDef *huart) {
+	HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_13);
+}
+void shutMotors(void) {
+	HAL_TIM_PWM_Stop(&htim1, TIM_CHANNEL_1);
+	HAL_TIM_PWM_Stop(&htim1, TIM_CHANNEL_2);
+	HAL_TIM_PWM_Stop(&htim1, TIM_CHANNEL_3);
+	HAL_TIM_PWM_Stop(&htim1, TIM_CHANNEL_4);
+}
+
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
+
+	HAL_UART_Receive_DMA(huart, receivedData, 20);
+	if (motorsInit == 0) {
+		initMotors();
+		motorsInit = 1;
+	} else {
+		motorsInit = 0;
+		shutMotors();
+	}
+
+}
+
 void droneInit(void) {
 	//initialize pwm signals.
-	initMotors();
+
 	initUART();
 	initIMU();
-
 	calibrateIMU();
-
 	blinkLED(50, 1000);
 
 }
@@ -152,18 +184,19 @@ int main(void) {
 
 	/* Initialize all configured peripherals */
 	MX_GPIO_Init();
+	MX_DMA_Init();
 	MX_I2C1_Init();
 	MX_TIM1_Init();
+	MX_USART3_UART_Init();
 	/* USER CODE BEGIN 2 */
 	droneInit();
 	/* USER CODE END 2 */
 
 	/* Init scheduler */
-//	osKernelInitialize(); /* Call init function for freertos objects (in freertos.c) */
-	MX_FREERTOS_Init();
+//  osKernelInitialize();  /* Call init function for freertos objects (in freertos.c) */
+//  MX_FREERTOS_Init();
 	/* Start scheduler */
-//	osKernelStart();
-
+//  osKernelStart();
 	/* We should never get here as control is now taken by the scheduler */
 	/* Infinite loop */
 	/* USER CODE BEGIN WHILE */
@@ -172,10 +205,23 @@ int main(void) {
 		/* USER CODE END WHILE */
 
 		/* USER CODE BEGIN 3 */
-		Read_DMP();
-		computePID();
-		setMotors();
-		HAL_Delay(pidLoopDelay);
+		if (motorsInit == 1) {
+			Read_DMP();
+			computePID();
+			setMotors();
+			if (x == 1) {
+							debugIMU();
+				x = 0;
+			}
+			x = x + 1;
+
+			HAL_Delay(pidLoopDelay);
+		} else {
+			uint8_t debugData[] = DISARMED;
+			HAL_UART_Transmit_DMA(&huart3, debugData, sizeof(debugData));
+			HAL_Delay(1000);
+		}
+
 	}
 	/* USER CODE END 3 */
 }
