@@ -14,7 +14,7 @@ class MyApp extends StatelessWidget {
 
         primarySwatch: Colors.purple,
       ),
-      home: MyHomePage(title: 'Quad Ground Station'),
+      home: MyHomePage(title: 'COVID-19: Ground Station'),
     );
   }
 }
