@@ -55,10 +55,11 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
-uint8_t receivedData[20] = "12345678901234567890";
+uint8_t receivedData[30] = "012345678901234567890123456789";
 uint8_t dataTypeToReturn = 255;
 int motorsInit = 0;
 int x = 0;
+int initComplete = 0;
 
 //PD controller parameters
 
@@ -91,7 +92,7 @@ void blinkLED(int numberOn, int duration) {
 
 }
 void initUART(void) {
-	while (HAL_UART_Receive_DMA(&huart3, receivedData, 20) != HAL_OK) {
+	while (HAL_UART_Receive_DMA(&huart3, receivedData, 30) != HAL_OK) {
 		blinkLED(2, 25);
 	}
 	blinkLED(2, 1000);
@@ -123,7 +124,7 @@ void initIMU() {
 
 }
 void HAL_UART_RxHalfCpltCallback(UART_HandleTypeDef *huart) {
-	HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_13);
+
 }
 void shutMotors(void) {
 	HAL_TIM_PWM_Stop(&htim1, TIM_CHANNEL_1);
@@ -131,26 +132,87 @@ void shutMotors(void) {
 	HAL_TIM_PWM_Stop(&htim1, TIM_CHANNEL_3);
 	HAL_TIM_PWM_Stop(&htim1, TIM_CHANNEL_4);
 }
+void setMotorsAcro(void) {
 
+	for (int i = 0; i < 20; i++) {
+		escSet(TIM_CHANNEL_1, 500 + 100 * i);
+		escSet(TIM_CHANNEL_2, 500 + 100 * i);
+		escSet(TIM_CHANNEL_3, 500 + 100 * i);
+		escSet(TIM_CHANNEL_4, 500 + 100 * i);
+		HAL_Delay(1500);
+//		setTrim();
+	}
+}
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
 
-	HAL_UART_Receive_DMA(huart, receivedData, 20);
-	if (motorsInit == 0) {
+	if (receivedData[1] == ARM[0]) {
 		initMotors();
+		HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_13);
 		motorsInit = 1;
-	} else {
-		motorsInit = 0;
+	} else if (receivedData[1] == DISARM[0]) {
 		shutMotors();
+		HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_13);
+		motorsInit = 0;
+	} else if (receivedData[1] == PID_SEND[0]) {
+		shutMotors();
+		setPidValues(receivedData);
+		initMotors();
+
+	} else if (receivedData[1] == TRIM_SEND[0]) {
+
+		shutMotors();
+		setTrimValues(receivedData);
+		initMotors();
+
+	} else if (receivedData[1] == ACROMODE[0]) {
+		motorsInit = 2;
+		setMotorsAcro();
 	}
+	HAL_UART_Receive_DMA(huart, receivedData, 30);
+//	else if (motorsInit == 0) {
+//		initMotors();
+//
+//		motorsInit = 1;
+//	} else if (motorsInit == 1) {
+//		shutMotors();
+//		motorsInit = 0;
+//	}
 
 }
-
+void calibrateESC(void) {
+	initMotors();
+	HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_13);
+	escSet(TIM_CHANNEL_1, 2500);
+	escSet(TIM_CHANNEL_2, 2500);
+	escSet(TIM_CHANNEL_3, 2500);
+	escSet(TIM_CHANNEL_4, 2500);
+	HAL_Delay(5000);
+	HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_13);
+	escSet(TIM_CHANNEL_1, 500);
+	escSet(TIM_CHANNEL_2, 500);
+	escSet(TIM_CHANNEL_3, 500);
+	escSet(TIM_CHANNEL_4, 500);
+	HAL_Delay(5000);
+	HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_13);
+	shutMotors();
+}
 void droneInit(void) {
 	//initialize pwm signals.
-
+	sendInitValues();
 	initUART();
 	initIMU();
 	calibrateIMU();
+//	if (initComplete == 2) {
+
+//		uint8_t debugData[] = ESC_CALIBRATE	;
+//		HAL_UART_Transmit_DMA(&huart3, debugData, sizeof(debugData));
+
+//	calibrateESC();
+//	}
+
+	uint8_t debugData[] = DISARMED;
+	HAL_UART_Transmit_DMA(&huart3, debugData, sizeof(debugData));
+
 	blinkLED(50, 1000);
 
 }
@@ -189,6 +251,7 @@ int main(void) {
 	MX_TIM1_Init();
 	MX_USART3_UART_Init();
 	/* USER CODE BEGIN 2 */
+	blinkLED(10, 8000);
 	droneInit();
 	/* USER CODE END 2 */
 
@@ -209,17 +272,17 @@ int main(void) {
 			Read_DMP();
 			computePID();
 			setMotors();
-			if (x == 1) {
-							debugIMU();
-				x = 0;
-			}
-			x = x + 1;
 
+			debugIMU();
 			HAL_Delay(pidLoopDelay);
-		} else {
+		} else if (motorsInit == 0) {
 			uint8_t debugData[] = DISARMED;
 			HAL_UART_Transmit_DMA(&huart3, debugData, sizeof(debugData));
 			HAL_Delay(1000);
+		} else if (motorsInit == 2) { //Acro mode
+			uint8_t debugData[] = ACROMODE;
+			HAL_UART_Transmit_DMA(&huart3, debugData, sizeof(debugData));
+			HAL_Delay(pidLoopDelay);
 		}
 
 	}

@@ -6,6 +6,8 @@
 #include "string.h" //for reset buffer
 #include "tim.h"
 #include "constDefines.h"
+#include <stdio.h>
+#include <stdlib.h>
 #define PRINT_ACCEL     (0x01)
 #define PRINT_GYRO      (0x02)
 #define PRINT_QUAT      (0x04)
@@ -19,7 +21,7 @@
 #define q30  1073741824.0f
 
 short gyro[3], accel[3], sensors;
-//float Pitch;
+
 float angles[4] = { 0.0, 0.0, 0.0, 0.0 };
 float q0 = 1.0f, q1 = 0.0f, q2 = 0.0f, q3 = 0.0f;
 uint16_t outs[4];
@@ -261,8 +263,8 @@ void MPU6050_initialize(void) {
  作    者：平衡小车之家
  **************************************************************************/
 
-float Kp[4] = {2.5, 2.5, 2.5, 0 };
-float Kd[4] = { 20, 20, 20, 0 };
+float Kp[4] = { 0, 5, 0, 0 };
+float Kd[4] = { 0, 0, 0, 0 };
 //roll, pitch, yaw, z axis
 float setpoint[4] = { 0.0, 0.0, 0.0, 0.0 };
 float error[4] = { 0.0, 0.0, 0.0, 0.0 };
@@ -271,6 +273,52 @@ float errorDiff[4] = { 0.0, 0.0, 0.0, 0.0 };
 float calibrators[4] = { 0.0, 0.0, 0.0, 0.0 };
 uint16_t maxVal[4] = { 2500, 2500, 2500, 2500 };
 uint16_t minVal[4] = { 500, 500, 500, 500 };
+uint16_t trim[4] = { 1480, 1500, 1500, 1500 };
+void setTrimValues(uint8_t trimString[]) {
+	int init_size = strlen(trimString);
+	char delim[] = ";";
+	//r4;1500;1500;1500;1500;
+
+	char *ptr = strtok(trimString, delim); //remove the first r4 crap
+	ptr = strtok(NULL, delim); //motor1
+	trim[0] = atoi(ptr);
+	ptr = strtok(NULL, delim); //motor2
+	trim[1] = atoi(ptr);
+	ptr = strtok(NULL, delim); //motor3
+	trim[2] = atoi(ptr);
+	ptr = strtok(NULL, delim); //motor4
+	trim[3] = atoi(ptr);
+
+
+}
+
+void setPidValues(uint8_t pidString[]) {
+
+	int init_size = strlen(pidString);
+	char delim[] = ";";
+	//r3;1;1;1;1;1;1;
+
+	char *ptr = strtok(pidString, delim); //remove the first r3 crap
+	ptr = strtok(NULL, delim); //kproll
+	Kp[0] = atof(ptr);
+	ptr = strtok(NULL, delim); //kproll
+	Kp[1] = atof(ptr);
+	ptr = strtok(NULL, delim); //kproll
+	Kp[2] = atof(ptr);
+	ptr = strtok(NULL, delim); //kproll
+	Kd[0] = atof(ptr);
+	ptr = strtok(NULL, delim); //kproll
+	Kd[1] = atof(ptr);
+	ptr = strtok(NULL, delim); //kproll
+	Kd[2] = atof(ptr);
+
+	for (int i = 0; i < 4; i++) {
+		error[i] = 0;
+		preverror[i] = 0;
+		errorDiff[i] = 0;
+	}
+
+}
 
 void calibrateIMU(void) {
 	uint8_t debugData[] = IMU_CALIBRATING;
@@ -288,40 +336,57 @@ void calibrateIMU(void) {
 	uint8_t debugData1[] = IMU_READY;
 	HAL_UART_Transmit_DMA(&huart3, debugData1, sizeof(debugData1));
 }
+void setTrim(void) {
+	Read_DMP();
+
+}
 void computePID(void) {
 	if (setpoint[0] - angles[0] + calibrators[0] - preverror[0] == 0) {
 		return;
 	}
 	//forward right positive
 	for (int i = 0; i < 4; i++) {
+
 		error[i] = setpoint[i] - (angles[i] - calibrators[i]);
 		errorDiff[i] = error[i] - preverror[i]; // not divding by loop time as thats just scaling.
 
 		output[i] = (error[i] * Kp[i] + errorDiff[i] * Kd[i]);
-//		if (output[i] > maxVal[i]) {
-//			output[i] = maxVal[i];
-//		} else if (output[i] < minVal[i]) {
-//			output[i] = minVal[i];
-//		}
+
 		preverror[i] = error[i];
 	}
-//	output[2] = 0;
+	output[2] = 0;
 	const int scale = 1;
-	const int bias = 1500;
-	outs[0] = bias + (output[3] - output[1] - output[0] - output[2]) * scale;
-	outs[1] = bias + (output[3] + output[1] - output[0] + output[2]) * scale;
-	outs[2] = bias + (output[3] - output[1] + output[0] + output[2]) * scale;
-	outs[3] = bias + (output[3] + output[1] + output[0] - output[2]) * scale;
+
+	outs[0] = trim[0] + (output[3] - output[1] - output[0] - output[2]) * scale;
+	outs[1] = trim[1] + (output[3] + output[1] - output[0] + output[2]) * scale;
+	outs[2] = trim[2] + (output[3] - output[1] + output[0] + output[2]) * scale;
+	outs[3] = trim[3] + (output[3] + output[1] + output[0] - output[2]) * scale;
+	for (int i = 0; i < 4; i++) {
+		if (outs[i] > maxVal[i]) {
+			outs[i] = maxVal[i];
+		} else if (outs[i] < minVal[i]) {
+			outs[i] = minVal[i];
+		}
+	}
 
 }
 void debugIMU() {
-	uint8_t debugData[30];
-	snprintf(debugData,30, "     <;%d;%d;%d;%d;>", outs[0], outs[1], outs[2], outs[3]);
-
+	uint8_t debugData[30] = "                             ";
+	snprintf(debugData, 30, "      <;%d;%d;%d;%d;>", outs[0], outs[1], outs[2],
+			outs[3]);
 
 	HAL_UART_Transmit_DMA(&huart3, debugData, sizeof(debugData));
 	HAL_Delay(pidLoopDelay);
 
+}
+void sendInitValues(){
+	//TODO
+//	uint8_t debugData[30] = "                             ";
+//		snprintf(debugData, 30, "      <;%d;%d;%d;%d;>", outs[0], outs[1], outs[2],
+//				outs[3]);
+//
+//		HAL_UART_Transmit_DMA(&huart3, debugData, sizeof(debugData));
+//		HAL_Delay(pidLoopDelay);
 }
 void escSet1(uint32_t channel, uint16_t value) {
 	__HAL_TIM_SET_COMPARE(&htim1, channel, value);
@@ -338,7 +403,7 @@ void setMotors(void) {
 }
 void DMP_Init(void) {
 
-	uint8_t x;
+	uint8_t x = 0;
 	while (x != 0x68) {
 
 		x = MPU6050_getDeviceID();
@@ -401,8 +466,12 @@ void Read_DMP(void) {
 		t2 = t2 > 1.0 ? 1.0 : t2;
 		t2 = t2 < -1.0 ? -1.0 : t2;
 
-		angles[0] = atan2(t3, t4) * 57.3; //roll
-		angles[1] = asin(t2) * 57.3; //pitch
+//		angles[0] = atan2(t3, t4) * 57.3; //roll
+//		angles[1] = asin(t2) * 57.3; //pitch
+//		angles[2] = atan2(t1, t0) * 57.3; //yaw
+
+		angles[1] = atan2(t3, t4) * 57.3; //pitch
+		angles[0] = asin(t2) * 57.3; //roll
 		angles[2] = atan2(t1, t0) * 57.3; //yaw
 
 //		Pitch = sinf(-2 * q1 * q3 + 2 * q0 * q2) * 57.3;

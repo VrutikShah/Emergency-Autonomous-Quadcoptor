@@ -22,5 +22,15 @@
 #define IMU_READY "<s9>"
 #define DISARMED	"<s7>"
 #define ARMED	"<s8>"
+#define ESC_CALIBRATE "<sA>"
+#define ARMED_ACRO "<sB>"
+
+
+//requested state
+#define ARM	"0"
+#define DISARM	"1"
+#define ACROMODE "2"
+#define PID_SEND "3"
+#define TRIM_SEND "4"
 
 #endif /* INC_CONSTDEFINES_H_ */

@@ -373,9 +373,12 @@ void MPU6050_InitGyro_Offset(void);//初始化陀螺仪偏置
 void DMP_Init(void);
 void calibrateIMU(void);
 void debugIMU(void);
+void setPidValues(uint8_t pidString[]);
 void computePID(void);
 void Read_DMP(void);
+void sendInitValues(void);
 void setMotors();
+void setTrimValues(uint8_t trimString[]);
 //void (void);
 int Read_Temperature(void);
 

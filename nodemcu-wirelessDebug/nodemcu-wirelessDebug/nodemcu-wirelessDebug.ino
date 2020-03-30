@@ -14,6 +14,7 @@ const char* password = "praveenv";
 
 int x = 0;
 String received = "";
+String sending = "                 ";
 WebSocketsServer webSocket = WebSocketsServer(81);
   int SUARTBaud = 9600;
   
@@ -85,14 +86,18 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length
     case WStype_CONNECTED:
       {
         IPAddress ip = webSocket.remoteIP(num);
+        webSocket.broadcastTXT("s2");
         Serial.printf("[%u] Connected from %d.%d.%d.%d url: %s\r\n", num, ip[0], ip[1], ip[2], ip[3], payload);
         // Send the current LED status
       }
       break;
     case WStype_TEXT:
       Serial.printf("[%u] get Text: %s\r\n", num, payload);
-      webSocket.broadcastTXT(payload + '\n');
-      bytesSent = SUART.write(payload, 20);
+//      webSocket.broadcastTXT(payload + '\n');
+      received = "";
+      i = 0;
+
+      bytesSent = SUART.write(payload, 30);
       Serial.print( bytesSent);
       Serial.print(" (");
       Serial.write(payload,20);
