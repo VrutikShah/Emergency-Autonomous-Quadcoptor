@@ -263,16 +263,16 @@ void MPU6050_initialize(void) {
  作    者：平衡小车之家
  **************************************************************************/
 
-float Kp[4] = { 0, 5, 0, 0 };
-float Kd[4] = { 0, 0, 0, 0 };
+float Kp[4] = { 0, 2.5, 0, 0 };
+float Kd[4] = { 0, 13, 0, 0 };
 //roll, pitch, yaw, z axis
 float setpoint[4] = { 0.0, 0.0, 0.0, 0.0 };
 float error[4] = { 0.0, 0.0, 0.0, 0.0 };
 float preverror[4] = { 0.0, 0.0, 0.0, 0.0 };
 float errorDiff[4] = { 0.0, 0.0, 0.0, 0.0 };
 float calibrators[4] = { 0.0, 0.0, 0.0, 0.0 };
-uint16_t maxVal[4] = { 2500, 2500, 2500, 2500 };
-uint16_t minVal[4] = { 500, 500, 500, 500 };
+uint16_t maxVal[4] = { 2000, 2000, 2000, 2000 };
+uint16_t minVal[4] = { 1000, 1000, 1000, 1000 };
 uint16_t trim[4] = { 1480, 1500, 1500, 1500 };
 void setTrimValues(uint8_t trimString[]) {
 	int init_size = strlen(trimString);

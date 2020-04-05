@@ -113,7 +113,7 @@ void initMotors(void) {
 	escSet(TIM_CHANNEL_4, 500);
 	uint8_t debugData[] = MOTORS_INIT;
 	HAL_UART_Transmit_DMA(&huart3, debugData, sizeof(debugData));
-//	blinkLED(5, 1000);
+	HAL_Delay(2000);
 }
 
 void initIMU() {

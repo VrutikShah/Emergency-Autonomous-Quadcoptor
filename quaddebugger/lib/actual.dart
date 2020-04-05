@@ -66,6 +66,7 @@ class _MyHomePageState extends State<MyHomePage> {
     "ACROMODE": "r2                                                     "
         .substring(0, 30),
     "PID_SEND": "r3",
+    "ESC_CALIBRATE":"r5                                                 ".substring(0,30),
   };
   void setLabels() async {
     SharedPreferences s = await SharedPreferences.getInstance();
@@ -807,7 +808,7 @@ class _MyHomePageState extends State<MyHomePage> {
                           return sales.value;
                         },
                         // Enable data label
-                        legendItemText: "Throttle",
+                        legendItemText: "Motor 1",
                         animationDuration: 0,
                         dataLabelSettings: DataLabelSettings(isVisible: false)),
                     LineSeries<GraphData, dynamic>(
@@ -816,7 +817,7 @@ class _MyHomePageState extends State<MyHomePage> {
                         yValueMapper: (GraphData sales, _) =>
                             sales.value.toInt(),
                         // Enable data label
-                        legendItemText: "Yaw",
+                        legendItemText: "Motor 2",
                         animationDuration: 0,
                         dataLabelSettings: DataLabelSettings(isVisible: false)),
                     LineSeries<GraphData, dynamic>(
@@ -825,7 +826,7 @@ class _MyHomePageState extends State<MyHomePage> {
                         yValueMapper: (GraphData sales, _) =>
                             sales.value.toInt(),
                         // Enable data label
-                        legendItemText: "Pitch",
+                        legendItemText: "Motor 3",
                         animationDuration: 0,
                         dataLabelSettings: DataLabelSettings(isVisible: false)),
                     LineSeries<GraphData, dynamic>(
@@ -834,7 +835,7 @@ class _MyHomePageState extends State<MyHomePage> {
                         yValueMapper: (GraphData sales, _) =>
                             sales.value.toInt(),
                         // Enable data label
-                        legendItemText: "Roll",
+                        legendItemText: "Motor 4",
                         animationDuration: 0,
                         dataLabelSettings: DataLabelSettings(isVisible: false))
                   ],
