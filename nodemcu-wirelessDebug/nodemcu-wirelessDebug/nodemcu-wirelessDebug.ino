@@ -7,7 +7,7 @@
 #include <Hash.h>
 #include<SoftwareSerial.h>
 
-SoftwareSerial SUART( D2, D1); //SRX  = DPin-D2; STX = DPin-D1
+SoftwareSerial SUART( D1, D2); //SRX  = DPin-D2; STX = DPin-D1
 
 const char* ssid = "LMEE";
 const char* password = "praveenv";
@@ -21,9 +21,9 @@ WebSocketsServer webSocket = WebSocketsServer(81);
 void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length);
 
 void setup() {
-  Serial.begin(115200);
+  Serial.begin(9600);
   Serial.setDebugOutput(true);
-  Serial.printf("Starting UART with stm32 at %d\n", SUARTBaud);
+  Serial.printf("\nStarting UART with stm32 at %d\n", SUARTBaud);
   SUART.begin(SUARTBaud);   //NodeMCU prefers higher Bd to work
 //  WiFi.mode(WIFI_STA);
 //  WiFi.begin(ssid, password);
@@ -108,8 +108,23 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length
       hexdump(payload, length);
       webSocket.sendBIN(num, payload, length);
       break;
+    case WStype_ERROR:
+      Serial.printf("%s\r\n", payload);
+      break;
+    case WStype_FRAGMENT_TEXT_START:
+      Serial.printf("%s\r\n", payload);
+      break;
+    case WStype_FRAGMENT_BIN_START:
+      Serial.printf("%s\r\n", payload);
+      break;
+    case WStype_FRAGMENT:
+      Serial.printf("%s\r\n", payload);
+      break;
+    case WStype_FRAGMENT_FIN:
+      Serial.printf("%s\r\n", payload);
+      break;
     default:
-      Serial.printf("Invalid WStype [%d]\r\n", type);
+      Serial.printf("Invalid WStype [%d]: \r\n", type);
       break;
   }
 }

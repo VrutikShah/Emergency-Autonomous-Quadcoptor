@@ -66,12 +66,32 @@ class _MyHomePageState extends State<MyHomePage> {
     "ACROMODE": "r2                                                     "
         .substring(0, 30),
     "PID_SEND": "r3",
-    "ESC_CALIBRATE":"r5                                                 ".substring(0,30),
+    "ESC_CALIBRATE":
+        "r5                                                 ".substring(0, 30),
   };
   void setLabels() async {
     SharedPreferences s = await SharedPreferences.getInstance();
     s.setStringList('key', stateDecoder.keys.toList());
     s.setStringList('labels', stateDecoder.values.toList());
+  }
+
+  void setSettings() async {
+    SharedPreferences s = await SharedPreferences.getInstance();
+    s.setString('pidGains', pidGainsText);
+    s.setString('trimText', trimText);
+  }
+
+  void getSettings() async {
+    SharedPreferences s = await SharedPreferences.getInstance();
+    pidGainsText = s.getString('pidGains');
+    trimText = s.getString('trimText');
+    if (pidGainsText == null) {
+      pidGainsText = 'r3;0;0;0;0;0;0;'; //roll pitch yaw || kp kd
+    }
+    if (trimText == null) {
+      trimText = 'r4;1500;1500;1500;1500;';
+    }
+    setState(() {});
   }
 
   void getLabels() async {
@@ -104,6 +124,7 @@ class _MyHomePageState extends State<MyHomePage> {
   @override
   void initState() {
     super.initState();
+    getSettings();
     subscription = Connectivity()
         .onConnectivityChanged
         .listen((ConnectivityResult result) async {
@@ -412,6 +433,7 @@ class _MyHomePageState extends State<MyHomePage> {
       },
     ).then((onValue) {
       setState(() {});
+      setSettings();
     });
   }
 
@@ -518,6 +540,7 @@ class _MyHomePageState extends State<MyHomePage> {
       },
     ).then((onValue) {
       setState(() {});
+      setSettings();
     });
   }
 
@@ -680,7 +703,9 @@ class _MyHomePageState extends State<MyHomePage> {
               ),
               AnimatedContainer(
                 decoration: BoxDecoration(
-                  color: (change == true)?Colors.amber.withAlpha(0):Colors.amber.withAlpha(255),
+                  color: (change == true)
+                      ? Colors.amber.withAlpha(0)
+                      : Colors.amber.withAlpha(255),
                   border: Border.all(width: 1.0, color: Colors.black),
                   borderRadius: BorderRadius.all(
                       Radius.circular(5.0) //         <--- border radius here
