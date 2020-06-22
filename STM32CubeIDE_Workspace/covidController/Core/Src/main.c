@@ -111,7 +111,7 @@ void initMotors(void) {
 	escSet(TIM_CHANNEL_4, 500);
 	uint8_t debugData[] = MOTORS_INIT;
 	HAL_UART_Transmit_DMA(&huart3, debugData, sizeof(debugData));
-	HAL_Delay(2000);
+//	HAL_Delay(2000);
 }
 
 void initIMU() {
@@ -144,12 +144,14 @@ void setMotorsAcro(void) {
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
 
 	if (receivedData[1] == ARM[0]) {
-		initMotors();
 		HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_RESET);
+		initMotors();
+
 		motorsInit = 1;
 	} else if (receivedData[1] == DISARM[0]) {
-		shutMotors();
 		HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_SET);
+		shutMotors();
+
 		motorsInit = 0;
 	} else if (receivedData[1] == PID_SEND[0]) {
 		shutMotors();

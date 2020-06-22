@@ -89,8 +89,8 @@ int16_t MPU6050_FIFO[6][11];
 int16_t Gx_offset = 0, Gy_offset = 0, Gz_offset = 0;
 
 /**************************实现函数********************************************
- *函数原型:		void MPU6050_setClockSource(uint8_t source)
- *功　　能:	    设置  MPU6050 的时钟源
+		void MPU6050_setClockSource(uint8_t source)
+
  * CLK_SEL | Clock Source
  * --------+--------------------------------------
  * 0       | Internal oscillator
@@ -108,10 +108,7 @@ void MPU6050_setClockSource(uint8_t source) {
 
 }
 
-/**************************实现函数********************************************
- // *函数原型:		void  MPU6050_newValues(int16_t ax,int16_t ay,int16_t az,int16_t gx,int16_t gy,int16_t gz)
- // *功　　能:	    将新的ADC数据更新到 FIFO数组，进行滤波处理
- // *******************************************************************************/
+
 void MPU6050_newValues(int16_t ax, int16_t ay, int16_t az, int16_t gx,
 		int16_t gy, int16_t gz) {
 	unsigned char i;
@@ -181,40 +178,23 @@ void MPU6050_setFullScaleGyroRange(uint8_t range) {
 	MPU6050_GCONFIG_FS_SEL_LENGTH, range);
 }
 
-/**************************实现函数********************************************
- *函数原型:		void MPU6050_setFullScaleAccelRange(uint8_t range)
- *功　　能:	    设置  MPU6050 加速度计的最大量程
- *******************************************************************************/
+
 void MPU6050_setFullScaleAccelRange(uint8_t range) {
 	IICwriteBits(devAddr, MPU6050_RA_ACCEL_CONFIG, MPU6050_ACONFIG_AFS_SEL_BIT,
 	MPU6050_ACONFIG_AFS_SEL_LENGTH, range);
 }
 
-/**************************实现函数********************************************
- *函数原型:		void MPU6050_setSleepEnabled(uint8_t enabled)
- *功　　能:	    设置  MPU6050 是否进入睡眠模式
- enabled =1   睡觉
- enabled =0   工作
- *******************************************************************************/
 void MPU6050_setSleepEnabled(uint8_t enabled) {
 	IICwriteBit(devAddr, MPU6050_RA_PWR_MGMT_1, MPU6050_PWR1_SLEEP_BIT,
 			enabled);
 }
 
-/**************************实现函数********************************************
- *函数原型:		uint8_t MPU6050_getDeviceID(void)
- *功　　能:	    读取  MPU6050 WHO_AM_I 标识	 将返回 0x68
- *******************************************************************************/
 uint8_t MPU6050_getDeviceID(void) {
 	memset(buffer, 0, sizeof(buffer));
 	i2c_read(devAddr, MPU6050_RA_WHO_AM_I, 1, buffer);
 	return buffer[0];
 }
 
-/**************************实现函数********************************************
- *函数原型:		uint8_t MPU6050_testConnection(void)
- *功　　能:	    检测MPU6050 是否已经连接
- *******************************************************************************/
 uint8_t MPU6050_testConnection(void) {
 	if (MPU6050_getDeviceID() == 0x68)  //0b01101000;
 		return 1;
@@ -222,28 +202,16 @@ uint8_t MPU6050_testConnection(void) {
 		return 0;
 }
 
-/**************************实现函数********************************************
- *函数原型:		void MPU6050_setI2CMasterModeEnabled(uint8_t enabled)
- *功　　能:	    设置 MPU6050 是否为AUX I2C线的主机
- *******************************************************************************/
 void MPU6050_setI2CMasterModeEnabled(uint8_t enabled) {
 	IICwriteBit(devAddr, MPU6050_RA_USER_CTRL, MPU6050_USERCTRL_I2C_MST_EN_BIT,
 			enabled);
 }
 
-/**************************实现函数********************************************
- *函数原型:		void MPU6050_setI2CBypassEnabled(uint8_t enabled)
- *功　　能:	    设置 MPU6050 是否为AUX I2C线的主机
- *******************************************************************************/
 void MPU6050_setI2CBypassEnabled(uint8_t enabled) {
 	IICwriteBit(devAddr, MPU6050_RA_INT_PIN_CFG,
 	MPU6050_INTCFG_I2C_BYPASS_EN_BIT, enabled);
 }
 
-/**************************实现函数********************************************
- *函数原型:		void MPU6050_initialize(void)
- *功　　能:	    初始化 	MPU6050 以进入可用状态。
- *******************************************************************************/
 void MPU6050_initialize(void) {
 
 	MPU6050_getDeviceID();
@@ -256,23 +224,18 @@ void MPU6050_initialize(void) {
 	MPU6050_setI2CBypassEnabled(0);	//主控制器的I2C与	MPU6050的AUXI2C	直通。控制器可以直接访问HMC5883L
 }
 
-/**************************************************************************
- 函数功能：MPU6050内置DMP的初始化
- 入口参数：无
- 返回  值：无
- 作    者：平衡小车之家
- **************************************************************************/
-
 float Kp[4] = { 0, 2.5, 0, 0 };
-float Kd[4] = { 0, 13, 0, 0 };
+float Kd[4] = { 0, 2, 0, 0 };
+float Ki[4] = { 0, 0, 0, 0 };
 //roll, pitch, yaw, z axis
 float setpoint[4] = { 0.0, 0.0, 0.0, 0.0 };
 float error[4] = { 0.0, 0.0, 0.0, 0.0 };
 float preverror[4] = { 0.0, 0.0, 0.0, 0.0 };
 float errorDiff[4] = { 0.0, 0.0, 0.0, 0.0 };
+float errorSum[4] = { 0.0, 0.0, 0.0, 0.0 };
 float calibrators[4] = { 0.0, 0.0, 0.0, 0.0 };
-uint16_t maxVal[4] = { 2000, 2000, 2000, 2000 };
-uint16_t minVal[4] = { 1000, 1000, 1000, 1000 };
+const uint16_t maxVal[4] = { 2000, 2000, 2000, 2000 };
+const uint16_t minVal[4] = { 1000, 1000, 1000, 1000 };
 uint16_t trim[4] = { 1480, 1500, 1500, 1500 };
 void setTrimValues(uint8_t trimString[]) {
 	int init_size = strlen(trimString);
@@ -349,8 +312,8 @@ void computePID(void) {
 
 		error[i] = setpoint[i] - (angles[i] - calibrators[i]);
 		errorDiff[i] = error[i] - preverror[i]; // not divding by loop time as thats just scaling.
-
-		output[i] = (error[i] * Kp[i] + errorDiff[i] * Kd[i]);
+		errorSum[i] = error[i] + preverror[i];
+		output[i] = (error[i] * Kp[i] + errorDiff[i] * Kd[i] + errorSum[i]*Ki[i]);
 
 		preverror[i] = error[i];
 	}
