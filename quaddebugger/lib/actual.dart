@@ -42,7 +42,7 @@ class _MyHomePageState extends State<MyHomePage> {
 
   bool x = false;
 
-  List<String> pids = ['0', '0', '0', '0', '0', '0'];
+  List<String> pids = ['0', '0', '0', '0', '0', '0','0','0','0']; // rpy, pid
   String pidGainsText = 'r3;0;0;0;0;0;0;'; //roll pitch yaw || kp kd
 
   var stateDecoder = <String, String>{
@@ -65,9 +65,11 @@ class _MyHomePageState extends State<MyHomePage> {
         .substring(0, 30),
     "ACROMODE": "r2                                                     "
         .substring(0, 30),
-    "PID_SEND": "r3",
+    "PID_KI_SEND": "r6",
+    "PID_KP_SEND":"r3",
+    "PID_KD_SEND":"r5",
     "ESC_CALIBRATE":
-        "r5                                                 ".substring(0, 30),
+        "r7                                                 ".substring(0, 30),
   };
   void setLabels() async {
     SharedPreferences s = await SharedPreferences.getInstance();
@@ -77,16 +79,17 @@ class _MyHomePageState extends State<MyHomePage> {
 
   void setSettings() async {
     SharedPreferences s = await SharedPreferences.getInstance();
-    s.setString('pidGains', pidGainsText);
+    s.setString('pidGains', pids.join(';'));
     s.setString('trimText', trimText);
   }
 
   void getSettings() async {
     SharedPreferences s = await SharedPreferences.getInstance();
     pidGainsText = s.getString('pidGains');
+    pids = pidGainsText.split(';');
     trimText = s.getString('trimText');
     if (pidGainsText == null) {
-      pidGainsText = 'r3;0;0;0;0;0;0;'; //roll pitch yaw || kp kd
+      pids = ['0','0','0','0','0','0','0','0','0'];
     }
     if (trimText == null) {
       trimText = 'r4;1500;1500;1500;1500;';
@@ -297,13 +300,28 @@ class _MyHomePageState extends State<MyHomePage> {
     });
   }
 
-  void sendPIDGains() async {
+  void sendPIDGains(int type) async {
+    String text;
+    String requestText;
+    if(type == 0){
+      text = 'Kp';
+      requestText = 'r3';
+    }
+    else if(type == 1){
+      text = 'Ki';
+      requestText = 'r5';
+    
+    }
+    else{
+      text = 'Kd';
+      requestText = 'r6';
+    }
     await showDialog(
       context: context,
       builder: (BuildContext context) {
         // return object of type Dialog
         return AlertDialog(
-          title: new Text("Edit PID Gains"),
+          title: new Text("Edit PID Gains - $text"),
           content: Container(
               // height: MediaQuery.of(context).size.height * 0.5,
               width: MediaQuery.of(context).size.width * 0.5,
@@ -314,13 +332,13 @@ class _MyHomePageState extends State<MyHomePage> {
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: <Widget>[
-                      Text("Roll Kp"),
+                      Text("Roll"),
                       Container(
                         width: MediaQuery.of(context).size.width * 0.1,
                         child: TextField(
-                          decoration: InputDecoration(hintText: pids[0]),
+                          decoration: InputDecoration(hintText: pids[ type*3]),
                           onChanged: (value) {
-                            pids[0] = value;
+                            pids[0+ type*3] = value;
                           },
                           keyboardType: TextInputType.number,
                         ),
@@ -331,13 +349,13 @@ class _MyHomePageState extends State<MyHomePage> {
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: <Widget>[
-                      Text("Pitch Kp"),
+                      Text("Pitch"),
                       Container(
                         width: MediaQuery.of(context).size.width * 0.1,
                         child: TextField(
-                          decoration: InputDecoration(hintText: pids[1]),
+                          decoration: InputDecoration(hintText: pids[1 + type*3]),
                           onChanged: (value) {
-                            pids[1] = value;
+                            pids[1+ type*3] = value;
                           },
                           keyboardType: TextInputType.number,
                         ),
@@ -348,70 +366,20 @@ class _MyHomePageState extends State<MyHomePage> {
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: <Widget>[
-                      Text("Yaw Kp"),
+                      Text("Yaw"),
                       Container(
                         width: MediaQuery.of(context).size.width * 0.1,
                         child: TextField(
-                          decoration: InputDecoration(hintText: pids[2]),
+                          decoration: InputDecoration(hintText: pids[2 + type*3]),
                           onChanged: (value) {
-                            pids[2] = value;
+                            pids[2 + type*3] = value;
                           },
                           keyboardType: TextInputType.number,
                         ),
                       )
                     ],
                   ),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: <Widget>[
-                      Text("Roll Kd"),
-                      Container(
-                        width: MediaQuery.of(context).size.width * 0.1,
-                        child: TextField(
-                          decoration: InputDecoration(hintText: pids[3]),
-                          onChanged: (value) {
-                            pids[3] = value;
-                          },
-                          keyboardType: TextInputType.number,
-                        ),
-                      )
-                    ],
-                  ),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: <Widget>[
-                      Text("Pitch Kd"),
-                      Container(
-                        width: MediaQuery.of(context).size.width * 0.1,
-                        child: TextField(
-                          decoration: InputDecoration(hintText: pids[4]),
-                          onChanged: (value) {
-                            pids[4] = value;
-                          },
-                          keyboardType: TextInputType.number,
-                        ),
-                      )
-                    ],
-                  ),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: <Widget>[
-                      Text("Yaw Kd"),
-                      Container(
-                        width: MediaQuery.of(context).size.width * 0.1,
-                        child: TextField(
-                          decoration: InputDecoration(hintText: pids[5]),
-                          onChanged: (value) {
-                            pids[5] = value;
-                          },
-                          keyboardType: TextInputType.number,
-                        ),
-                      )
-                    ],
-                  ),
+                  
                 ],
               )),
           actions: <Widget>[
@@ -419,9 +387,9 @@ class _MyHomePageState extends State<MyHomePage> {
             new FlatButton(
               child: new Text("Send"),
               onPressed: () {
-                pidGainsText = pids.join(';');
+                pidGainsText = pids.sublist(3*type,3*type + 3).join(';');
                 pidGainsText =
-                    'r3;' + pidGainsText + ';                         ';
+                    '$requestText;' + pidGainsText + ';                         ';
                 print(pidGainsText);
                 print(pidGainsText.length);
                 sendMessage(pidGainsText);
@@ -584,17 +552,6 @@ class _MyHomePageState extends State<MyHomePage> {
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: <Widget>[
                   RaisedButton(
-                      onPressed: () {
-                        if (connected == true) {
-                          sendPIDGains();
-                        } else {
-                          key.currentState.showSnackBar(SnackBar(
-                            content: Text("Not connected"),
-                          ));
-                        }
-                      },
-                      child: Text("PID Gains")),
-                  RaisedButton(
                       child: Text("Trims"),
                       onPressed: () {
                         if (connected == true) {
@@ -618,6 +575,27 @@ class _MyHomePageState extends State<MyHomePage> {
                           // }
                         }
                       }),
+                ],
+              ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: <Widget>[
+                  RaisedButton(
+                      onPressed: () {
+                        sendPIDGains(0);
+                      },
+                      child: Text("Kp")),
+                  RaisedButton(
+                      onPressed: () {
+                        sendPIDGains(1);
+                      },
+                      child: Text("Ki")),
+                  RaisedButton(
+                      onPressed: () {
+                        sendPIDGains(2);
+                      },
+                      child: Text("Kd")),
                 ],
               ),
               // SizedBox(
@@ -767,7 +745,7 @@ class _MyHomePageState extends State<MyHomePage> {
                             ),
                             children: [
                       TextSpan(
-                        text: "D Gains: Roll: ",
+                        text: "I Gains: Roll: ",
                         style: new TextStyle(
                           fontSize: 14.0,
                           fontStyle: FontStyle.italic,
@@ -793,6 +771,44 @@ class _MyHomePageState extends State<MyHomePage> {
                         ),
                       ),
                       TextSpan(text: "${pids[5]}"),
+                    ]))),
+              ),
+              Center(
+                child: Container(
+                    child: RichText(
+                        text: TextSpan(
+                            style: new TextStyle(
+                              fontSize: 14.0,
+                              color: Colors.black,
+                            ),
+                            children: [
+                      TextSpan(
+                        text: "D Gains: Roll: ",
+                        style: new TextStyle(
+                          fontSize: 14.0,
+                          fontStyle: FontStyle.italic,
+                          color: Colors.black,
+                        ),
+                      ),
+                      TextSpan(text: "${pids[6]}"),
+                      TextSpan(
+                        text: " Pitch: ",
+                        style: new TextStyle(
+                          fontSize: 14.0,
+                          fontStyle: FontStyle.italic,
+                          color: Colors.black,
+                        ),
+                      ),
+                      TextSpan(text: "${pids[7]}"),
+                      TextSpan(
+                        text: " Yaw: ",
+                        style: new TextStyle(
+                          fontSize: 14.0,
+                          fontStyle: FontStyle.italic,
+                          color: Colors.black,
+                        ),
+                      ),
+                      TextSpan(text: "${pids[8]}"),
                     ]))),
               ),
               Divider(),

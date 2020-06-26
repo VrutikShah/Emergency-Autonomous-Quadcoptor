@@ -22,6 +22,7 @@
 #include "FreeRTOS.h"
 #include "task.h"
 #include "main.h"
+#include "cmsis_os.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */     
@@ -47,11 +48,105 @@
 /* USER CODE BEGIN Variables */
 
 /* USER CODE END Variables */
+/* Definitions for pidTask */
+osThreadId_t pidTaskHandle;
+const osThreadAttr_t pidTask_attributes = {
+  .name = "pidTask",
+  .priority = (osPriority_t) osPriorityNormal,
+  .stack_size = 128 * 4
+};
+/* Definitions for gpsPoll */
+osThreadId_t gpsPollHandle;
+const osThreadAttr_t gpsPoll_attributes = {
+  .name = "gpsPoll",
+  .priority = (osPriority_t) osPriorityBelowNormal1,
+  .stack_size = 128 * 4
+};
 
 /* Private function prototypes -----------------------------------------------*/
 /* USER CODE BEGIN FunctionPrototypes */
    
 /* USER CODE END FunctionPrototypes */
+
+void pidStart(void *argument);
+void startGps(void *argument);
+
+void MX_FREERTOS_Init(void); /* (MISRA C 2004 rule 8.1) */
+
+/**
+  * @brief  FreeRTOS initialization
+  * @param  None
+  * @retval None
+  */
+void MX_FREERTOS_Init(void) {
+  /* USER CODE BEGIN Init */
+       
+  /* USER CODE END Init */
+
+  /* USER CODE BEGIN RTOS_MUTEX */
+  /* add mutexes, ... */
+  /* USER CODE END RTOS_MUTEX */
+
+  /* USER CODE BEGIN RTOS_SEMAPHORES */
+  /* add semaphores, ... */
+  /* USER CODE END RTOS_SEMAPHORES */
+
+  /* USER CODE BEGIN RTOS_TIMERS */
+  /* start timers, add new ones, ... */
+  /* USER CODE END RTOS_TIMERS */
+
+  /* USER CODE BEGIN RTOS_QUEUES */
+  /* add queues, ... */
+  /* USER CODE END RTOS_QUEUES */
+
+  /* Create the thread(s) */
+  /* creation of pidTask */
+  pidTaskHandle = osThreadNew(pidStart, NULL, &pidTask_attributes);
+
+  /* creation of gpsPoll */
+  gpsPollHandle = osThreadNew(startGps, NULL, &gpsPoll_attributes);
+
+  /* USER CODE BEGIN RTOS_THREADS */
+  /* add threads, ... */
+  /* USER CODE END RTOS_THREADS */
+
+}
+
+/* USER CODE BEGIN Header_pidStart */
+/**
+  * @brief  Function implementing the pidTask thread.
+  * @param  argument: Not used 
+  * @retval None
+  */
+/* USER CODE END Header_pidStart */
+void pidStart(void *argument)
+{
+  /* USER CODE BEGIN pidStart */
+  /* Infinite loop */
+  for(;;)
+  {
+    osDelay(1);
+  }
+  /* USER CODE END pidStart */
+}
+
+/* USER CODE BEGIN Header_startGps */
+/**
+* @brief Function implementing the gpsPoll thread.
+* @param argument: Not used
+* @retval None
+*/
+/* USER CODE END Header_startGps */
+void startGps(void *argument)
+{
+  /* USER CODE BEGIN startGps */
+  /* Infinite loop */
+  for(;;)
+  {
+    osDelay(1);
+  }
+  /* USER CODE END startGps */
+}
 
 /* Private application code --------------------------------------------------*/
 /* USER CODE BEGIN Application */
