@@ -2,7 +2,7 @@
 #define __MPU6050_H
 
 #define devAddr  0x68 //devAddr
-
+#include <stdint.h>
 #define MPU6050_ADDRESS_AD0_LOW     0x68 // address pin low (GND), default for InvenSense evaluation board
 #define MPU6050_ADDRESS_AD0_HIGH    0x69 // address pin high (VCC)
 #define MPU6050_DEFAULT_ADDRESS     MPU6050_ADDRESS_AD0_LOW
@@ -356,6 +356,7 @@ extern	short gyro[3], accel[3];
 extern int16_t Gx_offset,Gy_offset,Gz_offset;
 extern float Acc1G_Values;
 extern float Pitch;
+extern char imudebug[30];
 
 #ifdef __cplusplus
  extern "C" {

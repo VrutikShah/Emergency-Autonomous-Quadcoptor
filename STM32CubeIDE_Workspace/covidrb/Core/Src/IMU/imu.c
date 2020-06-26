@@ -7,6 +7,7 @@
 #include "tim.h"
 #include "constDefines.h"
 #include <stdio.h>
+#include "comms.h"
 #include <stdlib.h>
 #define constrain(amt,low,high) ((amt)<(low)?(low):((amt)>(high)?(high):(amt)))
 #define PRINT_ACCEL     (0x01)
@@ -374,19 +375,18 @@ void computePID(void) {
 	}
 
 }
-char debugData[30] = "";
-
+char debugval[30] = "";
 void debugIMU() {
 	for (int i = 0;i <29; i++){
-		debugData[i] = ' ';
+		debugval[i] = ' ';
 	}
-	debugData[29] = '\0';
-	snprintf(debugData, 30, "<;%d;%d;%d;%d;>", outs[0], outs[1], outs[2],
-			outs[3]); // motor vals
-//	snprintf(debugData, 30, "<;%d;%d;%d;%d;>", (int)error[0], (int)error[1], (int)error[2], (int)error[3]);
-	HAL_UART_Transmit_DMA(&huart3, debugData, sizeof(debugData));
-	HAL_Delay(pidLoopDelay);
-
+	debugval[29] = '\0';
+//	snprintf(debugval, 30, "<;%d;%d;%d;%d;>", outs[0], outs[1], outs[2],
+//			outs[3]); // motor vals
+	snprintf(debugval, 30, "<;%d;%d;%d;%d;>", (int)error[0], (int)error[1], (int)error[2], (int)error[3]);
+//	HAL_UART_Transmit_DMA(&huart3, debugData, sizeof(debugData));
+//	HAL_Delay(pidLoopDelay);
+	uartTransmit(debugval);
 }
 
 
