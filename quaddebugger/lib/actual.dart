@@ -2,6 +2,8 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:lite_rolling_switch/lite_rolling_switch.dart';
+import 'package:quaddebugger/3dobj.dart';
+import 'package:quaddebugger/3dobject.dart';
 import 'package:quaddebugger/acroModePage.dart';
 import 'package:quaddebugger/editLabels.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -42,7 +44,7 @@ class _MyHomePageState extends State<MyHomePage> {
 
   bool x = false;
 
-  List<String> pids = ['0', '0', '0', '0', '0', '0','0','0','0']; // rpy, pid
+  List<String> pids = ['0', '0', '0', '0', '0', '0', '0', '0', '0']; // rpy, pid
   String pidGainsText = 'r3;0;0;0;0;0;0;'; //roll pitch yaw || kp kd
 
   var stateDecoder = <String, String>{
@@ -66,8 +68,8 @@ class _MyHomePageState extends State<MyHomePage> {
     "ACROMODE": "r2                                                     "
         .substring(0, 30),
     "PID_KI_SEND": "r6",
-    "PID_KP_SEND":"r3",
-    "PID_KD_SEND":"r5",
+    "PID_KP_SEND": "r3",
+    "PID_KD_SEND": "r5",
     "ESC_CALIBRATE":
         "r7                                                 ".substring(0, 30),
   };
@@ -89,7 +91,7 @@ class _MyHomePageState extends State<MyHomePage> {
     pids = pidGainsText.split(';');
     trimText = s.getString('trimText');
     if (pidGainsText == null) {
-      pids = ['0','0','0','0','0','0','0','0','0'];
+      pids = ['0', '0', '0', '0', '0', '0', '0', '0', '0'];
     }
     if (trimText == null) {
       trimText = 'r4;1500;1500;1500;1500;';
@@ -303,16 +305,13 @@ class _MyHomePageState extends State<MyHomePage> {
   void sendPIDGains(int type) async {
     String text;
     String requestText;
-    if(type == 0){
+    if (type == 0) {
       text = 'Kp';
       requestText = 'r3';
-    }
-    else if(type == 1){
+    } else if (type == 1) {
       text = 'Ki';
       requestText = 'r5';
-    
-    }
-    else{
+    } else {
       text = 'Kd';
       requestText = 'r6';
     }
@@ -336,9 +335,9 @@ class _MyHomePageState extends State<MyHomePage> {
                       Container(
                         width: MediaQuery.of(context).size.width * 0.1,
                         child: TextField(
-                          decoration: InputDecoration(hintText: pids[ type*3]),
+                          decoration: InputDecoration(hintText: pids[type * 3]),
                           onChanged: (value) {
-                            pids[0+ type*3] = value;
+                            pids[0 + type * 3] = value;
                           },
                           keyboardType: TextInputType.number,
                         ),
@@ -353,9 +352,10 @@ class _MyHomePageState extends State<MyHomePage> {
                       Container(
                         width: MediaQuery.of(context).size.width * 0.1,
                         child: TextField(
-                          decoration: InputDecoration(hintText: pids[1 + type*3]),
+                          decoration:
+                              InputDecoration(hintText: pids[1 + type * 3]),
                           onChanged: (value) {
-                            pids[1+ type*3] = value;
+                            pids[1 + type * 3] = value;
                           },
                           keyboardType: TextInputType.number,
                         ),
@@ -370,16 +370,16 @@ class _MyHomePageState extends State<MyHomePage> {
                       Container(
                         width: MediaQuery.of(context).size.width * 0.1,
                         child: TextField(
-                          decoration: InputDecoration(hintText: pids[2 + type*3]),
+                          decoration:
+                              InputDecoration(hintText: pids[2 + type * 3]),
                           onChanged: (value) {
-                            pids[2 + type*3] = value;
+                            pids[2 + type * 3] = value;
                           },
                           keyboardType: TextInputType.number,
                         ),
                       )
                     ],
                   ),
-                  
                 ],
               )),
           actions: <Widget>[
@@ -387,9 +387,10 @@ class _MyHomePageState extends State<MyHomePage> {
             new FlatButton(
               child: new Text("Send"),
               onPressed: () {
-                pidGainsText = pids.sublist(3*type,3*type + 3).join(';');
-                pidGainsText =
-                    '$requestText;' + pidGainsText + ';                         ';
+                pidGainsText = pids.sublist(3 * type, 3 * type + 3).join(';');
+                pidGainsText = '$requestText;' +
+                    pidGainsText +
+                    ';                         ';
                 print(pidGainsText);
                 print(pidGainsText.length);
                 sendMessage(pidGainsText);
@@ -927,6 +928,36 @@ class _MyHomePageState extends State<MyHomePage> {
                     setState(() {});
                   },
                   child: Text("Clear console")),
+              SizedBox(
+                height: 10,
+              ),
+              Text(
+                "Drone Orientation",
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              ),
+              // RaisedButton(
+              //     child: Text("3d"),
+              //     onPressed: () {
+              //       Navigator.push(
+              //           context,
+              //           MaterialPageRoute(
+              //               builder: (BuildContext context) => Drone3d()));
+              //     }),
+              Align(
+                alignment: Alignment.topLeft,
+                child: Container(
+                  color: Colors.white,
+                  child: Object3D(
+                    asset: true,
+                    path: 'assets/drone1.obj',
+                    size: const Size(40.0, 40.0),
+                    zoom: 0.5,
+                  ),
+                ),
+              ),
+              SizedBox(
+                height: 400,
+              )
             ],
           ),
         ),
