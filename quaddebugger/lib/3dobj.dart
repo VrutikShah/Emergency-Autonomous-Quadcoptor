@@ -15,7 +15,6 @@ class Object3D extends StatefulWidget {
     @required this.size,
     @required this.path,
     @required this.asset,
-    // this.scalingFactor = 
     this.angleX,
     this.angleY,
     this.angleZ,
@@ -131,7 +130,7 @@ class _ObjectPainter extends CustomPainter {
 
 //  final double _rotation = 5.0; // in degrees
   double _translation = 0.1 / 100;
- final double _scalingFactor = 10.0 / 100.0; // in percent
+//  final double _scalingFactor = 10.0 / 100.0; // in percent
 
   final double zero = 0.0;
 
@@ -314,7 +313,7 @@ class _ObjectPainter extends CustomPainter {
     });
 
     for (int i = 0; i < verticesToDraw.length; i++) {
-      verticesToDraw[i] = _calcDefaultVertex(verticesToDraw[i])/_scalingFactor;
+      verticesToDraw[i] = _calcDefaultVertex(verticesToDraw[i]);
     }
 
     final List<Map> avgOfZ = List();

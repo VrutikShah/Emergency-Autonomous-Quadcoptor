@@ -247,9 +247,9 @@ void MPU6050_initialize(void) {
 	MPU6050_setI2CBypassEnabled(0);	//主控制器的I2C与	MPU6050的AUXI2C	直通。控制器可以直接访问HMC5883L
 }
 
-float Kp[4] = { 0, 3.8, 0, 0 };
-float Kd[4] = { 0, 30, 0, 0 };
-float Ki[4] = { 0, 0.035, 0, 0 };
+float Kp[4] = { 0,1.5 , 0, 0 };
+float Ki[4] = { 0, 0.001, 0, 0 };
+float Kd[4] = { 0, 0.35, 0, 0 };
 //roll, pitch, yaw, z axis
 float setpoint[4] = { 0.0, 0.0, 0.0, 0.0 };
 float error[4] = { 0.0, 0.0, 0.0, 0.0 };
@@ -259,7 +259,7 @@ float errorSum[4] = { 0.0, 0.0, 0.0, 0.0 };
 float calibrators[4] = { 0.0, 0.0, 0.0, 0.0 };
 const uint16_t maxVal[4] = { 2000, 2000, 2000, 2000 };
 const uint16_t minVal[4] = { 1000, 1000, 1000, 1000 };
-uint16_t trim[4] = { 1480, 1500, 1500, 1580 };
+uint16_t trim[4] = { 1380, 1500, 1500, 1500 };
 void setTrimValues(uint8_t trimString[]) {
 //	int init_size = strlen(trimString);
 	char delim[] = ";";
@@ -343,11 +343,6 @@ void calibrateIMU(void) {
 const int scale = 1;
 void computePID(void) {
 	//roll0 pitch1 yaw2
-
-//	if (setpoint[0] - angles[0] + calibrators[0] - preverror[0] == 0) {
-//		return;
-//	}
-
 	//forward right positive
 	for (int i = 0; i < 3; i++) {
 
@@ -359,7 +354,6 @@ void computePID(void) {
 
 		preverror[i] = error[i];
 	}
-	// roll pitch yaw
 	output[2] = 0;
 
 	outs[0] = trim[0] + (output[3] - output[1] - output[0] - output[2]) * scale;
@@ -376,19 +370,28 @@ void computePID(void) {
 
 }
 char debugval[30] = "";
+int debugCounter = 0;
 void debugIMU() {
-	for (int i = 0;i <29; i++){
+	if(transmitComplete != 1){
+		return;
+	}
+	for (int i = 0; i < 29; i++) {
 		debugval[i] = ' ';
 	}
 	debugval[29] = '\0';
-//	snprintf(debugval, 30, "<;%d;%d;%d;%d;>", outs[0], outs[1], outs[2],
-//			outs[3]); // motor vals
-	snprintf(debugval, 30, "<;%d;%d;%d;%d;>", (int)error[0], (int)error[1], (int)error[2], (int)error[3]);
-//	HAL_UART_Transmit_DMA(&huart3, debugData, sizeof(debugData));
-//	HAL_Delay(pidLoopDelay);
+	if (debugCounter == 0 ) {
+		snprintf(debugval, 30, "<d0;%d;%d;%d;%d;>", outs[0], outs[1], outs[2],
+				outs[3]); // motor vals
+		debugCounter = 1;
+	} else if (debugCounter == 1 ) {
+		snprintf(debugval, 30, "<d1;%d;%d;%d;%d;>", (int) error[0],
+				(int) error[1], (int) error[2], (int) error[3]);
+		debugCounter = 0;
+	}
 	uartTransmit(debugval);
+	//	HAL_UART_Transmit_DMA(&huart3, debugData, sizeof(debugData));
+	//	HAL_Delay(pidLoopDelay);
 }
-
 
 void sendInitValues() {
 	//TODO
@@ -403,10 +406,8 @@ void escSet1(uint32_t channel, uint16_t value) {
 	__HAL_TIM_SET_COMPARE(&htim1, channel, value);
 }
 void setMotors(void) {
-
 	// pitch, roll. yaw, throttle
 	//   0 ,  1   , 2,   3
-
 	escSet1(TIM_CHANNEL_1, outs[0]);
 	escSet1(TIM_CHANNEL_2, outs[1]);
 	escSet1(TIM_CHANNEL_3, outs[2]);
@@ -416,9 +417,7 @@ void DMP_Init(void) {
 
 	uint8_t x = 0;
 	while (x != 0x68) {
-
 		x = MPU6050_getDeviceID();
-
 	}
 
 	if (x != 0x68)

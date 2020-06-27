@@ -111,7 +111,7 @@ void initMotors(void) {
 	escSet(TIM_CHANNEL_4, 500);
 //	uint8_t debugData[] = MOTORS_INIT;
 //	HAL_UART_Transmit_DMA(&huart3, debugData, sizeof(debugData));
-	uartTransmit(MOTORS_INIT);
+//	uartTransmit(MOTORS_INIT);
 //	HAL_Delay(2000);
 }
 
@@ -287,12 +287,13 @@ int main(void)
 //			HAL_UART_Transmit_DMA(&huart3, debugData, sizeof(debugData));
 			uartTransmit(DISARMED);
 			HAL_Delay(1000);
-		} else if (motorsInit == 2) { //Acro mode
-//			uint8_t debugData[] = ACROMODE;
-//			HAL_UART_Transmit_DMA(&huart3, debugData, sizeof(debugData));
-			uartTransmit(ACROMODE);
-			HAL_Delay(pidLoopDelay);
 		}
+//		} else if (motorsInit == 2) { //Acro mode
+////			uint8_t debugData[] = ACROMODE;
+////			HAL_UART_Transmit_DMA(&huart3, debugData, sizeof(debugData));
+//			uartTransmit(ACROMODE);
+//			HAL_Delay(pidLoopDelay);
+//		}
 
 	}
   /* USER CODE END 3 */

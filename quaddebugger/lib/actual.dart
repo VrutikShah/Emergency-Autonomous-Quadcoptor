@@ -3,7 +3,6 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:lite_rolling_switch/lite_rolling_switch.dart';
 import 'package:quaddebugger/3dobj.dart';
-import 'package:quaddebugger/3dobject.dart';
 import 'package:quaddebugger/acroModePage.dart';
 import 'package:quaddebugger/editLabels.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -31,10 +30,10 @@ class _MyHomePageState extends State<MyHomePage> {
       TextEditingController(text: "192.168.4.1:81");
   int i = 0;
   String currentState = "NETWORK_DISCONNECTED";
-  List<GraphData> throttles = [];
-  List<GraphData> pitch = [];
-  List<GraphData> roll = [];
-  List<GraphData> yaw = [];
+  List<GraphData> motor4 = [GraphData(0, 0)];
+  List<GraphData> motor3 = [GraphData(0, 0)];
+  List<GraphData> motor2 = [GraphData(0, 0)];
+  List<GraphData> motor1 = [GraphData(0, 0)];
   bool change = false;
   String wifiSSID;
   int maxLengthGraph = 60;
@@ -45,7 +44,7 @@ class _MyHomePageState extends State<MyHomePage> {
   bool x = false;
 
   List<String> pids = ['0', '0', '0', '0', '0', '0', '0', '0', '0']; // rpy, pid
-  String pidGainsText = 'r3;0;0;0;0;0;0;'; //roll pitch yaw || kp kd
+  String pidGainsText = 'r3;0;0;0;0;0;0;'; //motor2 motor3 motor1 || kp kd
 
   var stateDecoder = <String, String>{
     "s1": "NETWORK_DISCONNECTED",
@@ -130,6 +129,9 @@ class _MyHomePageState extends State<MyHomePage> {
   void initState() {
     super.initState();
     getSettings();
+    DronePose.x = 0;
+    DronePose.y = 0;
+    DronePose.z = 0;
     subscription = Connectivity()
         .onConnectivityChanged
         .listen((ConnectivityResult result) async {
@@ -182,44 +184,56 @@ class _MyHomePageState extends State<MyHomePage> {
           return;
         } else if (message[0] == 'r') {
           return;
-        }
-        currentState = "ARMED";
+        } else if (message[0] == 'd') {
+          if (message[1] == '0') {
+            // throttles
+            currentState = "ARMED";
 
-        // print(message.split(';'));
-        throttles.add(GraphData(i, int.parse(message.split(';')[1])));
-        if (throttles.length >= maxLengthGraph) {
-          throttles = throttles.reversed
-              .toList()
-              .sublist(0, maxLengthGraph)
-              .reversed
-              .toList();
+            // print(message.split(';'));
+            motor4.add(GraphData(i, int.parse(message.split(';')[4])));
+            if (motor4.length >= maxLengthGraph) {
+              motor4 = motor4.reversed
+                  .toList()
+                  .sublist(0, maxLengthGraph)
+                  .reversed
+                  .toList();
+            }
+            motor2.add(GraphData(i, int.parse(message.split(';')[2])));
+            if (motor2.length >= maxLengthGraph) {
+              motor2 = motor2.reversed
+                  .toList()
+                  .sublist(0, maxLengthGraph)
+                  .reversed
+                  .toList();
+            }
+            motor3.add(GraphData(i, int.parse(message.split(';')[3])));
+            if (motor3.length >= maxLengthGraph) {
+              motor3 = motor3.reversed
+                  .toList()
+                  .sublist(0, maxLengthGraph)
+                  .reversed
+                  .toList();
+            }
+            motor1.add(GraphData(i, int.parse(message.split(';')[1])));
+            if (motor1.length >= maxLengthGraph) {
+              motor1 = motor1.reversed
+                  .toList()
+                  .sublist(0, maxLengthGraph)
+                  .reversed
+                  .toList();
+            }
+            i = i + 1;
+            setState(() {});
+          } else if (message[1] == '1') {
+            //SET angles - <d1;x;y;z>
+            var poses = message.split(';');
+            DronePose.y = double.parse(poses[1]);
+            DronePose.x = double.parse(poses[2]);
+            DronePose.z = double.parse(poses[3]);
+
+            setState(() {});
+          }
         }
-        roll.add(GraphData(i, int.parse(message.split(';')[2])));
-        if (roll.length >= maxLengthGraph) {
-          roll = roll.reversed
-              .toList()
-              .sublist(0, maxLengthGraph)
-              .reversed
-              .toList();
-        }
-        pitch.add(GraphData(i, int.parse(message.split(';')[3])));
-        if (pitch.length >= maxLengthGraph) {
-          pitch = pitch.reversed
-              .toList()
-              .sublist(0, maxLengthGraph)
-              .reversed
-              .toList();
-        }
-        yaw.add(GraphData(i, int.parse(message.split(';')[4])));
-        if (yaw.length >= maxLengthGraph) {
-          yaw = yaw.reversed
-              .toList()
-              .sublist(0, maxLengthGraph)
-              .reversed
-              .toList();
-        }
-        i = i + 1;
-        setState(() {});
       },
       onDone: () {
         connected = false;
@@ -843,7 +857,7 @@ class _MyHomePageState extends State<MyHomePage> {
                   ),
                   series: <LineSeries<GraphData, dynamic>>[
                     LineSeries<GraphData, dynamic>(
-                        dataSource: throttles,
+                        dataSource: motor4,
                         xValueMapper: (GraphData sales, _) => sales.timestamp,
                         yValueMapper: (GraphData sales, _) {
                           // print(sales.value);
@@ -854,7 +868,7 @@ class _MyHomePageState extends State<MyHomePage> {
                         animationDuration: 0,
                         dataLabelSettings: DataLabelSettings(isVisible: false)),
                     LineSeries<GraphData, dynamic>(
-                        dataSource: yaw,
+                        dataSource: motor1,
                         xValueMapper: (GraphData sales, _) => sales.timestamp,
                         yValueMapper: (GraphData sales, _) =>
                             sales.value.toInt(),
@@ -863,7 +877,7 @@ class _MyHomePageState extends State<MyHomePage> {
                         animationDuration: 0,
                         dataLabelSettings: DataLabelSettings(isVisible: false)),
                     LineSeries<GraphData, dynamic>(
-                        dataSource: pitch,
+                        dataSource: motor3,
                         xValueMapper: (GraphData sales, _) => sales.timestamp,
                         yValueMapper: (GraphData sales, _) =>
                             sales.value.toInt(),
@@ -872,7 +886,7 @@ class _MyHomePageState extends State<MyHomePage> {
                         animationDuration: 0,
                         dataLabelSettings: DataLabelSettings(isVisible: false)),
                     LineSeries<GraphData, dynamic>(
-                        dataSource: roll,
+                        dataSource: motor2,
                         xValueMapper: (GraphData sales, _) => sales.timestamp,
                         yValueMapper: (GraphData sales, _) =>
                             sales.value.toInt(),
@@ -885,10 +899,10 @@ class _MyHomePageState extends State<MyHomePage> {
               ),
               RaisedButton(
                   onPressed: () {
-                    throttles = [];
-                    yaw = [];
-                    roll = [];
-                    pitch = [];
+                    motor4 = [GraphData(0, 0)];
+                    motor1 = [GraphData(0, 0)];
+                    motor2 = [GraphData(0, 0)];
+                    motor3 = [GraphData(0, 0)];
                     i = 0;
                     setState(() {});
                   },
@@ -943,27 +957,37 @@ class _MyHomePageState extends State<MyHomePage> {
               //           MaterialPageRoute(
               //               builder: (BuildContext context) => Drone3d()));
               //     }),
-              Align(
-                alignment: Alignment.topLeft,
-                child: Container(
-                  color: Colors.white,
-                  child: Object3D(
-                    asset: true,
-                    path: 'assets/drone1.obj',
-                    size: const Size(40.0, 40.0),
-                    zoom: 0.5,
+              SizedBox(
+                height: 30,
+              ),
+              AbsorbPointer(
+                child: Align(
+                  alignment: Alignment.center,
+                  child: Container(
+                    // color: Colors.black,
+                    child: Object3D(
+                      asset: true,
+                      angleZ: -60 - DronePose.z,
+                      angleX: -60 + DronePose.x,
+                      angleY: DronePose.y,
+                      path: 'assets/drone1.obj',
+                      size: const Size(300.0, 300.0),
+                      zoom: 10,
+                    ),
                   ),
                 ),
               ),
-              SizedBox(
-                height: 400,
-              )
             ],
           ),
         ),
       ),
     );
   }
+}
+
+class DronePose {
+  // DronePose(this.x, this.y, this.z);
+  static double x, y, z;
 }
 
 class GraphData {
