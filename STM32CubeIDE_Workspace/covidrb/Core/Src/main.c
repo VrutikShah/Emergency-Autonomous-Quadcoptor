@@ -74,7 +74,6 @@ void blinkLED(int numberOn, int duration) {
 	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_9, GPIO_PIN_SET);
 	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_8, GPIO_PIN_RESET);
 	if (numberOn == 0) {
-
 		return;
 	}
 	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_8, GPIO_PIN_SET);
@@ -162,6 +161,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
 
 	if (receivedData[1] == ARM[0]) {
 		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_8, GPIO_PIN_RESET);
+		initIMU();
 		initMotors();
 		motorsInit = 1;
 	} else if (receivedData[1] == DISARM[0]) {

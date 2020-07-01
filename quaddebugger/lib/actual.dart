@@ -22,6 +22,9 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
+  PageController pageController = PageController(
+    initialPage: 0,
+  );
   String ipAddress = "192.168.4.1:81";
   var channel;
   String consoleOut = "";
@@ -535,13 +538,17 @@ class _MyHomePageState extends State<MyHomePage> {
         title: Text(widget.title),
         actions: <Widget>[
           IconButton(
-            icon: Icon(Icons.edit),
+            icon: Icon(Icons.message),
             tooltip: "Edit label maps",
             onPressed: () {
-              Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                      builder: (BuildContext context) => EditLabelsPage()));
+              if (connected == true) {
+                sendCustomMessage();
+              } else {
+                key.currentState.showSnackBar(SnackBar(
+                  content: Text("Not connected"),
+                ));
+                // }
+              }
             },
           ),
           IconButton(
@@ -556,75 +563,257 @@ class _MyHomePageState extends State<MyHomePage> {
           )
         ],
       ),
-      body: SingleChildScrollView(
-        child: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.start,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: <Widget>[
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+      body: Stack(
+        children: <Widget>[
+          SingleChildScrollView(
+            child: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.start,
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: <Widget>[
-                  RaisedButton(
-                      child: Text("Trims"),
-                      onPressed: () {
-                        if (connected == true) {
-                          sendTrims();
-                        } else {
-                          key.currentState.showSnackBar(SnackBar(
-                            content: Text("Not connected"),
-                          ));
-                          // }
-                        }
-                      }),
-                  RaisedButton(
-                      child: Text("Custom Message"),
-                      onPressed: () {
-                        if (connected == true) {
-                          sendCustomMessage();
-                        } else {
-                          key.currentState.showSnackBar(SnackBar(
-                            content: Text("Not connected"),
-                          ));
-                          // }
-                        }
-                      }),
+                  SizedBox(
+                    height: 230,
+                  ),
+                  Text("PID Gains",
+                      textAlign: TextAlign.center,
+                      style:
+                          TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+                  DataTable(columns: [
+                    DataColumn(label: Text("Label", textAlign: TextAlign.center,)),
+                    DataColumn(label: Text("Kp", textAlign: TextAlign.center)),
+                    DataColumn(label: Text("Ki", textAlign: TextAlign.center)),
+                    DataColumn(label: Text("Kd", textAlign: TextAlign.center)),
+                  ], rows: [
+                    DataRow(cells: [
+                      DataCell(Text("Roll", textAlign: TextAlign.center)),
+                      DataCell(Text(pids[0].toString(), textAlign: TextAlign.center)),
+                      DataCell(Text(pids[3].toString(), textAlign: TextAlign.center)),
+                      DataCell(Text(pids[6].toString(), textAlign: TextAlign.center)),
+                    ]),
+                    DataRow(cells: [
+                      DataCell(Text("Pitch", textAlign: TextAlign.center)),
+                      DataCell(Text(pids[1].toString(), textAlign: TextAlign.center)),
+                      DataCell(Text(pids[4].toString(), textAlign: TextAlign.center)),
+                      DataCell(Text(pids[7].toString(), textAlign: TextAlign.center)),
+                    ]),
+                    DataRow(cells: [
+                      DataCell(Text("Yaw", textAlign: TextAlign.center)),
+                      DataCell(Text(pids[2].toString(), textAlign: TextAlign.center)),
+                      DataCell(Text(pids[5].toString(), textAlign: TextAlign.center)),
+                      DataCell(Text(pids[8].toString(), textAlign: TextAlign.center)),
+                    ]),
+                    DataRow(cells: [
+                      DataCell(Text("Send")),
+                      DataCell(IconButton(
+                          onPressed: () {
+                            sendPIDGains(0);
+                          },
+                          icon: Icon(Icons.brightness_1, color: Colors.black))),
+                      DataCell(IconButton(
+                          onPressed: () {
+                            sendPIDGains(1);
+                          },
+                          icon: Icon(Icons.brightness_1, color: Colors.black))),
+                      DataCell(IconButton(
+                          onPressed: () {
+                            sendPIDGains(2);
+                          },
+                          icon: Icon(Icons.brightness_1, color: Colors.black))),
+                    ]),
+                  ]),
+                  ListTile(
+                    subtitle: Text(
+                      "Send Trims",
+                      textAlign: TextAlign.center,
+                    ),
+                    onTap: () {
+                      if (connected == true) {
+                        sendTrims();
+                      } else {
+                        key.currentState.showSnackBar(SnackBar(
+                          content: Text("Not connected"),
+                        ));
+                      }
+                    },
+                    title: Container(
+                        child: Text(
+                      "Motor Trims: " + trimText.trim().substring(3),
+                      textAlign: TextAlign.center,
+                      style: TextStyle(fontSize: 14),
+                    )),
+                  ),
+                  // Divider(),
+                  Container(
+                    width: MediaQuery.of(context).size.width,
+                    height: 450,
+                    child: PageView(controller: pageController, children: [
+                      Column(
+                        children: <Widget>[
+                          Center(
+                            child: Container(
+                                child: Text(
+                              "Motor Outputs",
+                              style: TextStyle(
+                                  fontSize: 16, fontWeight: FontWeight.bold),
+                              textAlign: TextAlign.left,
+                            )),
+                          ),
+                          SizedBox(
+                            height: 10,
+                          ),
+                          Container(
+                            child: SfCartesianChart(
+                              primaryXAxis: NumericAxis(),
+                              // primaryXAxis: DateTimeAxis(),
+                              tooltipBehavior: TooltipBehavior(enable: true),
+                              legend: Legend(
+                                isVisible: true,
+                                position: LegendPosition.bottom,
+                              ),
+                              series: <LineSeries<GraphData, dynamic>>[
+                                LineSeries<GraphData, dynamic>(
+                                    dataSource: motor4,
+                                    xValueMapper: (GraphData sales, _) =>
+                                        sales.timestamp,
+                                    yValueMapper: (GraphData sales, _) {
+                                      // print(sales.value);
+                                      return sales.value;
+                                    },
+                                    // Enable data label
+                                    legendItemText: "Motor 1",
+                                    animationDuration: 0,
+                                    dataLabelSettings:
+                                        DataLabelSettings(isVisible: false)),
+                                LineSeries<GraphData, dynamic>(
+                                    dataSource: motor1,
+                                    xValueMapper: (GraphData sales, _) =>
+                                        sales.timestamp,
+                                    yValueMapper: (GraphData sales, _) =>
+                                        sales.value.toInt(),
+                                    // Enable data label
+                                    legendItemText: "Motor 2",
+                                    animationDuration: 0,
+                                    dataLabelSettings:
+                                        DataLabelSettings(isVisible: false)),
+                                LineSeries<GraphData, dynamic>(
+                                    dataSource: motor3,
+                                    xValueMapper: (GraphData sales, _) =>
+                                        sales.timestamp,
+                                    yValueMapper: (GraphData sales, _) =>
+                                        sales.value.toInt(),
+                                    // Enable data label
+                                    legendItemText: "Motor 3",
+                                    animationDuration: 0,
+                                    dataLabelSettings:
+                                        DataLabelSettings(isVisible: false)),
+                                LineSeries<GraphData, dynamic>(
+                                    dataSource: motor2,
+                                    xValueMapper: (GraphData sales, _) =>
+                                        sales.timestamp,
+                                    yValueMapper: (GraphData sales, _) =>
+                                        sales.value.toInt(),
+                                    // Enable data label
+                                    legendItemText: "Motor 4",
+                                    animationDuration: 0,
+                                    dataLabelSettings:
+                                        DataLabelSettings(isVisible: false))
+                              ],
+                            ),
+                          ),
+                          RaisedButton(
+                              onPressed: () {
+                                motor4 = [GraphData(0, 0)];
+                                motor1 = [GraphData(0, 0)];
+                                motor2 = [GraphData(0, 0)];
+                                motor3 = [GraphData(0, 0)];
+                                i = 0;
+                                setState(() {});
+                              },
+                              child: Text("Clear graph")),
+                        ],
+                      ),
+                      Column(
+                        children: <Widget>[
+                          Center(
+                            child: Container(
+                                child: Text(
+                              "Console Output",
+                              style: TextStyle(
+                                  fontSize: 16, fontWeight: FontWeight.bold),
+                              textAlign: TextAlign.left,
+                            )),
+                          ),
+                          SizedBox(
+                            height: 10,
+                          ),
+                          Padding(
+                            padding:
+                                const EdgeInsets.fromLTRB(16.0, 0, 16.0, 16.0),
+                            child: Container(
+                                // color: Colors.grey,
+                                width: MediaQuery.of(context).size.width,
+                                height:
+                                    MediaQuery.of(context).size.height * 0.4,
+                                decoration: BoxDecoration(
+                                  border: Border.all(
+                                      width: 2.0, color: Colors.purple),
+                                  borderRadius: BorderRadius.all(
+                                      Radius.circular(
+                                          5.0) //         <--- border radius here
+                                      ),
+                                ),
+                                child: Padding(
+                                  padding: const EdgeInsets.all(16.0),
+                                  child: Text(consoleOut),
+                                )),
+                          ),
+                          RaisedButton(
+                              onPressed: () {
+                                consoleOut = "";
+                                setState(() {});
+                              },
+                              child: Text("Clear console")),
+                        ],
+                      ),
+                      Column(
+                        children: <Widget>[
+                          Text(
+                            "Drone Orientation",
+                            style: TextStyle(
+                                fontWeight: FontWeight.bold, fontSize: 16),
+                          ),
+                          SizedBox(
+                            height: 30,
+                          ),
+                          AbsorbPointer(
+                            child: Align(
+                              alignment: Alignment.center,
+                              child: Container(
+                                // color: Colors.black,
+                                child: Object3D(
+                                  asset: true,
+                                  angleZ: -60 - DronePose.z,
+                                  angleX: -60 + DronePose.x,
+                                  angleY: DronePose.y,
+                                  path: 'assets/drone1.obj',
+                                  size: const Size(300.0, 300.0),
+                                  zoom: 10,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ]),
+                  ),
                 ],
               ),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: <Widget>[
-                  RaisedButton(
-                      onPressed: () {
-                        sendPIDGains(0);
-                      },
-                      child: Text("Kp")),
-                  RaisedButton(
-                      onPressed: () {
-                        sendPIDGains(1);
-                      },
-                      child: Text("Ki")),
-                  RaisedButton(
-                      onPressed: () {
-                        sendPIDGains(2);
-                      },
-                      child: Text("Kd")),
-                ],
-              ),
-              // SizedBox(
-              //   height: 10,
-              // ),
-              // Center(
-              //   child: Container(
-              //       child: Text(
-              //     "Connected to: $wifiSSID ",
-              //     style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-              //     textAlign: TextAlign.left,
-              //   )),
-              // ),
-              Divider(),
+            ),
+          ),
+          Container(
+            color: Colors.white,
+            height: 220,
+            child: Column(children: [
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.center,
@@ -662,9 +851,6 @@ class _MyHomePageState extends State<MyHomePage> {
                   ),
                 ],
               ),
-              SizedBox(
-                height: 10,
-              ),
               AbsorbPointer(
                 absorbing: !connected,
                 child: LiteRollingSwitch(
@@ -692,7 +878,7 @@ class _MyHomePageState extends State<MyHomePage> {
                 ),
               ),
               SizedBox(
-                height: 40,
+                height: 10,
               ),
               AnimatedContainer(
                 decoration: BoxDecoration(
@@ -710,276 +896,9 @@ class _MyHomePageState extends State<MyHomePage> {
                 ),
                 duration: Duration(milliseconds: 500),
               ),
-
-              Divider(),
-              Center(
-                child: Container(
-                    child: RichText(
-                        text: TextSpan(
-                            style: new TextStyle(
-                              fontSize: 14.0,
-                              color: Colors.black,
-                            ),
-                            children: [
-                      TextSpan(
-                        text: "P Gains: Roll: ",
-                        style: new TextStyle(
-                          fontSize: 14.0,
-                          fontStyle: FontStyle.italic,
-                          color: Colors.black,
-                        ),
-                      ),
-                      TextSpan(text: "${pids[0]}"),
-                      TextSpan(
-                        text: " Pitch: ",
-                        style: new TextStyle(
-                          fontSize: 14.0,
-                          fontStyle: FontStyle.italic,
-                          color: Colors.black,
-                        ),
-                      ),
-                      TextSpan(text: "${pids[1]}"),
-                      TextSpan(
-                        text: " Yaw: ",
-                        style: new TextStyle(
-                          fontSize: 14.0,
-                          fontStyle: FontStyle.italic,
-                          color: Colors.black,
-                        ),
-                      ),
-                      TextSpan(text: "${pids[2]}"),
-                    ]))),
-              ),
-              Center(
-                child: Container(
-                    child: RichText(
-                        text: TextSpan(
-                            style: new TextStyle(
-                              fontSize: 14.0,
-                              color: Colors.black,
-                            ),
-                            children: [
-                      TextSpan(
-                        text: "I Gains: Roll: ",
-                        style: new TextStyle(
-                          fontSize: 14.0,
-                          fontStyle: FontStyle.italic,
-                          color: Colors.black,
-                        ),
-                      ),
-                      TextSpan(text: "${pids[3]}"),
-                      TextSpan(
-                        text: " Pitch: ",
-                        style: new TextStyle(
-                          fontSize: 14.0,
-                          fontStyle: FontStyle.italic,
-                          color: Colors.black,
-                        ),
-                      ),
-                      TextSpan(text: "${pids[4]}"),
-                      TextSpan(
-                        text: " Yaw: ",
-                        style: new TextStyle(
-                          fontSize: 14.0,
-                          fontStyle: FontStyle.italic,
-                          color: Colors.black,
-                        ),
-                      ),
-                      TextSpan(text: "${pids[5]}"),
-                    ]))),
-              ),
-              Center(
-                child: Container(
-                    child: RichText(
-                        text: TextSpan(
-                            style: new TextStyle(
-                              fontSize: 14.0,
-                              color: Colors.black,
-                            ),
-                            children: [
-                      TextSpan(
-                        text: "D Gains: Roll: ",
-                        style: new TextStyle(
-                          fontSize: 14.0,
-                          fontStyle: FontStyle.italic,
-                          color: Colors.black,
-                        ),
-                      ),
-                      TextSpan(text: "${pids[6]}"),
-                      TextSpan(
-                        text: " Pitch: ",
-                        style: new TextStyle(
-                          fontSize: 14.0,
-                          fontStyle: FontStyle.italic,
-                          color: Colors.black,
-                        ),
-                      ),
-                      TextSpan(text: "${pids[7]}"),
-                      TextSpan(
-                        text: " Yaw: ",
-                        style: new TextStyle(
-                          fontSize: 14.0,
-                          fontStyle: FontStyle.italic,
-                          color: Colors.black,
-                        ),
-                      ),
-                      TextSpan(text: "${pids[8]}"),
-                    ]))),
-              ),
-              Divider(),
-              Center(
-                child: Container(
-                    child: Text(
-                  "Motor Trims: " + trimText.trim().substring(3),
-                  textAlign: TextAlign.left,
-                )),
-              ),
-              Divider(),
-              Center(
-                child: Container(
-                    child: Text(
-                  "Motor Outputs",
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                  textAlign: TextAlign.left,
-                )),
-              ),
-              SizedBox(
-                height: 10,
-              ),
-              Container(
-                child: SfCartesianChart(
-                  primaryXAxis: NumericAxis(),
-                  // primaryXAxis: DateTimeAxis(),
-                  tooltipBehavior: TooltipBehavior(enable: true),
-                  legend: Legend(
-                    isVisible: true,
-                    position: LegendPosition.bottom,
-                  ),
-                  series: <LineSeries<GraphData, dynamic>>[
-                    LineSeries<GraphData, dynamic>(
-                        dataSource: motor4,
-                        xValueMapper: (GraphData sales, _) => sales.timestamp,
-                        yValueMapper: (GraphData sales, _) {
-                          // print(sales.value);
-                          return sales.value;
-                        },
-                        // Enable data label
-                        legendItemText: "Motor 1",
-                        animationDuration: 0,
-                        dataLabelSettings: DataLabelSettings(isVisible: false)),
-                    LineSeries<GraphData, dynamic>(
-                        dataSource: motor1,
-                        xValueMapper: (GraphData sales, _) => sales.timestamp,
-                        yValueMapper: (GraphData sales, _) =>
-                            sales.value.toInt(),
-                        // Enable data label
-                        legendItemText: "Motor 2",
-                        animationDuration: 0,
-                        dataLabelSettings: DataLabelSettings(isVisible: false)),
-                    LineSeries<GraphData, dynamic>(
-                        dataSource: motor3,
-                        xValueMapper: (GraphData sales, _) => sales.timestamp,
-                        yValueMapper: (GraphData sales, _) =>
-                            sales.value.toInt(),
-                        // Enable data label
-                        legendItemText: "Motor 3",
-                        animationDuration: 0,
-                        dataLabelSettings: DataLabelSettings(isVisible: false)),
-                    LineSeries<GraphData, dynamic>(
-                        dataSource: motor2,
-                        xValueMapper: (GraphData sales, _) => sales.timestamp,
-                        yValueMapper: (GraphData sales, _) =>
-                            sales.value.toInt(),
-                        // Enable data label
-                        legendItemText: "Motor 4",
-                        animationDuration: 0,
-                        dataLabelSettings: DataLabelSettings(isVisible: false))
-                  ],
-                ),
-              ),
-              RaisedButton(
-                  onPressed: () {
-                    motor4 = [GraphData(0, 0)];
-                    motor1 = [GraphData(0, 0)];
-                    motor2 = [GraphData(0, 0)];
-                    motor3 = [GraphData(0, 0)];
-                    i = 0;
-                    setState(() {});
-                  },
-                  child: Text("Clear graph")),
-              Divider(),
-              Center(
-                child: Container(
-                    child: Text(
-                  "Console Output",
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                  textAlign: TextAlign.left,
-                )),
-              ),
-              SizedBox(
-                height: 10,
-              ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16.0, 0, 16.0, 16.0),
-                child: Container(
-                    // color: Colors.grey,
-                    width: MediaQuery.of(context).size.width,
-                    height: MediaQuery.of(context).size.height * 0.4,
-                    decoration: BoxDecoration(
-                      border: Border.all(width: 2.0, color: Colors.purple),
-                      borderRadius: BorderRadius.all(Radius.circular(
-                              5.0) //         <--- border radius here
-                          ),
-                    ),
-                    child: Padding(
-                      padding: const EdgeInsets.all(16.0),
-                      child: Text(consoleOut),
-                    )),
-              ),
-              RaisedButton(
-                  onPressed: () {
-                    consoleOut = "";
-                    setState(() {});
-                  },
-                  child: Text("Clear console")),
-              SizedBox(
-                height: 10,
-              ),
-              Text(
-                "Drone Orientation",
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-              ),
-              // RaisedButton(
-              //     child: Text("3d"),
-              //     onPressed: () {
-              //       Navigator.push(
-              //           context,
-              //           MaterialPageRoute(
-              //               builder: (BuildContext context) => Drone3d()));
-              //     }),
-              SizedBox(
-                height: 30,
-              ),
-              AbsorbPointer(
-                child: Align(
-                  alignment: Alignment.center,
-                  child: Container(
-                    // color: Colors.black,
-                    child: Object3D(
-                      asset: true,
-                      angleZ: -60 - DronePose.z,
-                      angleX: -60 + DronePose.x,
-                      angleY: DronePose.y,
-                      path: 'assets/drone1.obj',
-                      size: const Size(300.0, 300.0),
-                      zoom: 10,
-                    ),
-                  ),
-                ),
-              ),
-            ],
+            ]),
           ),
-        ),
+        ],
       ),
     );
   }
