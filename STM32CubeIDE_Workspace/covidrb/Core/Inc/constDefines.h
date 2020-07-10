@@ -8,7 +8,7 @@
 #ifndef INC_CONSTDEFINES_H_
 #define INC_CONSTDEFINES_H_
 
-#define pidLoopDelay 25
+#define pidLoopDelay 50
 #define imuLoopDelay pidLoopDelay - 10
 
 //drone states
@@ -32,8 +32,11 @@
 #define ACROMODE "2"
 #define PID_KP_SEND "3"
 #define TRIM_SEND "4"
-#define PID_KD_SEND "5"
-#define PID_KI_SEND "6"
+#define PID_KI_SEND "5"
+#define PID_KD_SEND "6"
+
 
 
 #endif /* INC_CONSTDEFINES_H_ */
+
+void blinkLED(int numberOn, int duration);

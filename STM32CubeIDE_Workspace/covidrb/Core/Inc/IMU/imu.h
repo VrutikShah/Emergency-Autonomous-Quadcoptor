@@ -375,7 +375,7 @@ void DMP_Init(void);
 void calibrateIMU(void);
 void debugIMU(void);
 void setPidValues(uint8_t pidString[], uint8_t type);
-void computePID(void);
+void computePID(long dt);
 void Read_DMP(void);
 void sendInitValues(void);
 void setMotors();

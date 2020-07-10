@@ -247,9 +247,9 @@ void MPU6050_initialize(void) {
 	MPU6050_setI2CBypassEnabled(0);	//主控制器的I2C与	MPU6050的AUXI2C	直通。控制器可以直接访问HMC5883L
 }
 
-float Kp[4] = { 0,1.5 , 0, 0 };
-float Ki[4] = { 0, 0.001, 0, 0 };
-float Kd[4] = { 0, 0.35, 0, 0 };
+float Kp[4] = { 0, 0, 0, 0 };
+float Ki[4] = { 0, 0, 0, 0 };
+float Kd[4] = { 0, 0, 0, 0 };
 //roll, pitch, yaw, z axis
 float setpoint[4] = { 0.0, 0.0, 0.0, 0.0 };
 float error[4] = { 0.0, 0.0, 0.0, 0.0 };
@@ -290,16 +290,17 @@ void setPidValues(uint8_t pidString[], uint8_t type) {
 		Kp[1] = atof(ptr);
 		ptr = strtok(NULL, delim); //kpyaw
 		Kp[2] = atof(ptr);
+		blinkLED(1, 1000);
 	} else if (type == PID_KI_SEND[0]) {
 
 		ptr = strtok(NULL, delim); //kproll
-		Ki[0] = atof(ptr);
+		Ki[0] = atof(ptr) / 100.0;
 		ptr = strtok(NULL, delim); //kppitch
-		Ki[1] = atof(ptr);
+		Ki[1] = atof(ptr) / 100.0;
 		ptr = strtok(NULL, delim); //kpyaw
-		Ki[2] = atof(ptr);
-
-	} else if (type == PID_KI_SEND[0]) {
+		Ki[2] = atof(ptr) / 100.0;
+		blinkLED(2, 1000);
+	} else if (type == PID_KD_SEND[0]) {
 
 		ptr = strtok(NULL, delim); //kproll
 		Kd[0] = atof(ptr);
@@ -307,7 +308,7 @@ void setPidValues(uint8_t pidString[], uint8_t type) {
 		Kd[1] = atof(ptr);
 		ptr = strtok(NULL, delim); //kpyaw
 		Kd[2] = atof(ptr);
-
+		blinkLED(3, 1000);
 	}
 
 	for (int i = 0; i < 4; i++) {
@@ -341,21 +342,67 @@ void calibrateIMU(void) {
 //
 //}
 const int scale = 1;
-void computePID(void) {
+void computePID(long dt) {
 	//roll0 pitch1 yaw2
 	//forward right positive
 	for (int i = 0; i < 3; i++) {
 
 		error[i] = setpoint[i] - (angles[i] - calibrators[i]);
-		errorDiff[i] = error[i] - preverror[i]; // not divding by loop time as thats just scaling.
-		errorSum[i] = error[i] + preverror[i];
+		errorDiff[i] = (error[i] - preverror[i]) / dt;
+		errorSum[i] += (error[i] + preverror[i]) * dt;
 		output[i] = (error[i] * Kp[i] + errorDiff[i] * Kd[i]
 				+ errorSum[i] * Ki[i]);
 
 		preverror[i] = error[i];
 	}
 	output[2] = 0;
-
+	/*
+	 * output[0] - roll
+	 * output[1] - pitch
+	 * output[2]- yaw
+	 * Drone :
+	 *
+	 *		0 (TEST)        1
+	 *		 \             /
+	 *  	  \     	  /
+	 *	       \   		 /
+	 *    	    \ 		/
+	 *    	     = = = =
+	 *          /       \
+	 *	       /  		 \
+	 *    	  /   		  \
+	 *   	 /    		   \
+	 *	    2      			3 (TEST)
+	 *
+	 *		1 - outs[0] - channel 4 - A11
+	 *		2 - outs[1] - channel 3 - A10
+	 *		3 - outs[2] - channel 2 - A09
+	 *		4 - outs[3] - channel 1 - A08
+	 */
+//	int temp = trim[0]
+//			+ (output[3] - output[1] - output[0] - output[2]) * scale;
+//	if (abs(temp - prevouts[0]) > 8) {
+//		outs[0] = temp;
+//		prevouts[0] = outs[0];
+//	}
+//
+//	temp = trim[1] + (output[3] + output[1] - output[0] + output[2]) * scale;
+//	if (abs(temp - prevouts[1]) > 8) {
+//		outs[1] = temp;
+//		prevouts[1] = outs[1];
+//	}
+//
+//	temp = trim[2] + (output[3] - output[1] + output[0] + output[2]) * scale;
+//	if (abs(temp - prevouts[2]) > 8) {
+//		outs[2] = temp;
+//		prevouts[2] = outs[2];
+//	}
+//
+//	temp = trim[3] + (output[3] + output[1] + output[0] - output[2]) * scale;
+//	if (abs(temp - prevouts[3]) > 8) {
+//		outs[3] = temp;
+//		prevouts[3] = outs[3];
+//	}
 	outs[0] = trim[0] + (output[3] - output[1] - output[0] - output[2]) * scale;
 	outs[1] = trim[1] + (output[3] + output[1] - output[0] + output[2]) * scale;
 	outs[2] = trim[2] + (output[3] - output[1] + output[0] + output[2]) * scale;
@@ -372,22 +419,29 @@ void computePID(void) {
 char debugval[30] = "";
 int debugCounter = 0;
 void debugIMU() {
-	if(transmitComplete != 1){
+	if (transmitComplete != 1) {
 		return;
 	}
 	for (int i = 0; i < 29; i++) {
 		debugval[i] = ' ';
 	}
 	debugval[29] = '\0';
-	if (debugCounter == 0 ) {
+//	snprintf(debugval, 30, "<SUM;%d;%d;%d;%d;>", (int) errorSum[0],
+//			(int) errorSum[1], (int) errorSum[2], (int) errorSum[3]);
+	if (debugCounter == 0) {
 		snprintf(debugval, 30, "<d0;%d;%d;%d;%d;>", outs[0], outs[1], outs[2],
 				outs[3]); // motor vals
 		debugCounter = 1;
-	} else if (debugCounter == 1 ) {
+	} else if (debugCounter == 1) {
 		snprintf(debugval, 30, "<d1;%d;%d;%d;%d;>", (int) error[0],
 				(int) error[1], (int) error[2], (int) error[3]);
 		debugCounter = 0;
 	}
+	else if (debugCounter == 2) {
+			snprintf(debugval, 30, "<SUM;%d;%d;%d;%d;>", (int) errorSum[0],
+					(int) errorSum[1], (int) errorSum[2], (int) errorSum[3]);
+			debugCounter = 0;
+		}
 	uartTransmit(debugval);
 	//	HAL_UART_Transmit_DMA(&huart3, debugData, sizeof(debugData));
 	//	HAL_Delay(pidLoopDelay);

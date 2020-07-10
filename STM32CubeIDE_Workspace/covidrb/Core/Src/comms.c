@@ -14,11 +14,11 @@ void uartTransmit(char *buf) {
 //		buf[i] = ' ';
 //	}
 	if (transmitComplete == 1) {
-		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_9, GPIO_PIN_RESET);
+//		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_9, GPIO_PIN_RESET);
 		HAL_UART_Transmit_DMA(&huart3, buf, 30);
 		transmitComplete = 0;
 	} else {
-		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_9, GPIO_PIN_SET);
+//		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_9, GPIO_PIN_SET);
 	}
 //	transmitComplete = 0;
 
