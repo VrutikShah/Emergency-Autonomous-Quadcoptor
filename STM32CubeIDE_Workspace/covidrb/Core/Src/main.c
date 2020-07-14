@@ -69,13 +69,12 @@ uint8_t dataTypeToReturn = 255;
 int motorsInit = 0;
 int x = 0;
 int initComplete = 0;
-
+int enableDebug = 1;
 
 void initUART(void) {
 	while (HAL_UART_Receive_DMA(&huart3, receivedData, 30) != HAL_OK) {
 		blinkLED(2, 25);
 	}
-	blinkLED(2, 1000);
 
 }
 
@@ -94,7 +93,7 @@ void initMotors(void) {
 //	uint8_t debugData[] = MOTORS_INIT;
 //	HAL_UART_Transmit_DMA(&huart3, debugData, sizeof(debugData));
 //	uartTransmit(MOTORS_INIT);
-//	HAL_Delay(2000);
+	HAL_Delay(1000);
 }
 
 void initIMU() {
@@ -147,6 +146,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
 		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_8, GPIO_PIN_RESET);
 		initIMU();
 		initMotors();
+		resetPID();
 		motorsInit = 1;
 	} else if (receivedData[1] == DISARM[0]) {
 		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_8, GPIO_PIN_SET);
@@ -156,31 +156,38 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
 	} else if (receivedData[1] == PID_KP_SEND[0]) {
 		shutMotors();
 		setPidValues(receivedData, PID_KP_SEND[0]);
-		blinkLED(2, 500);
 		initMotors();
 
 	} else if (receivedData[1] == PID_KI_SEND[0]) {
 		shutMotors();
 		setPidValues(receivedData, PID_KI_SEND[0]);
-		blinkLED(2, 500);
 		initMotors();
 
 	} else if (receivedData[1] == PID_KD_SEND[0]) {
 		shutMotors();
 		setPidValues(receivedData, PID_KD_SEND[0]);
-		blinkLED(2, 500);
 		initMotors();
 
 	} else if (receivedData[1] == TRIM_SEND[0]) {
 
 		shutMotors();
 		setTrimValues(receivedData);
-		blinkLED(2, 1000);
+		blinkLED(4, 1000);
 		initMotors();
 
 	} else if (receivedData[1] == ACROMODE[0]) {
 		motorsInit = 2;
 		setMotorsAcro();
+	} else if (receivedData[1] == 'D') {
+		blinkLED(5, 1000);
+		if (enableDebug == 1) {
+			enableDebug = 0;
+		} else {
+			enableDebug = 1;
+		}
+	}
+	else if(receivedData[1] == SET_SETPOINT[0]){
+		setSetpoint(receivedData);
 	}
 	HAL_UART_Receive_DMA(huart, receivedData, 30);
 //	else if (motorsInit == 0) {
@@ -196,9 +203,11 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
 void droneInit(void) {
 	//initialize pwm signals.
 //	sendInitValues();
+	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_9, GPIO_PIN_SET);
+	blinkLED(4, 4000); //waiting
 	initUART();
 	initIMU();
-	calibrateIMU();
+	calibrateIMU(); //starting to calibrate
 
 //	if (initComplete == 2) {
 
@@ -211,7 +220,11 @@ void droneInit(void) {
 //	uint8_t debugData[] = DISARMED;
 //	HAL_UART_Transmit_DMA(&huart3, debugData, sizeof(debugData));
 	uartTransmit(DISARMED);
-	blinkLED(50, 1000);
+	if (imuInit == 1) {
+		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_9, GPIO_PIN_RESET); //Indicate ready to fly!
+	} else {
+		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_9, GPIO_PIN_SET); //Indicate error with IMU init!
+	}
 
 }
 
@@ -225,6 +238,7 @@ long prevTime = 0;
 long processTime = 0;
 long elapsedTime = 0;
 int n = 0;
+
 int main(void) {
 	/* USER CODE BEGIN 1 */
 
@@ -253,7 +267,7 @@ int main(void) {
 	MX_TIM1_Init();
 	MX_USART3_UART_Init();
 	/* USER CODE BEGIN 2 */
-	blinkLED(10, 4000);
+
 	droneInit();
 	/* USER CODE END 2 */
 
@@ -268,17 +282,18 @@ int main(void) {
 			Read_DMP();
 			computePID(elapsedTime);
 			setMotors();
-			debugIMU();
-			HAL_Delay(20);
+			if (enableDebug == 1) {
+				debugIMU();
+			}
+
+			HAL_Delay(1);
 //			processTime = (processTime * n);
 			HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_9);
 
 			elapsedTime = HAL_GetTick() - prevTime;
-			processTime =  processTime + elapsedTime;
+			processTime += elapsedTime;
 			n = n + 1;
 //			processTime = (int) processTime/n;
-
-
 
 		} else if (motorsInit == 0) {
 //			uint8_t debugData[] = DISARMED;
@@ -291,11 +306,12 @@ int main(void) {
 				debugval[i] = ' ';
 			}
 			debugval[29] = '\0';
-			snprintf(debugval, 30, "<time: %ld; n: %d;>    ",  processTime, n);
+			snprintf(debugval, 30, "<s7;time: %ld; n: %d;>    ", processTime,
+					n);
 			uartTransmit(debugval);
 
 			HAL_Delay(1000);
-			uartTransmit(DISARMED);
+//			uartTransmit(DISARMED);
 			HAL_Delay(1000);
 		}
 //		} else if (motorsInit == 2) { //Acro mode

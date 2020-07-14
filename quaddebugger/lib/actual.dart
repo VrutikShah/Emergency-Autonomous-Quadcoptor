@@ -1,5 +1,5 @@
 import 'dart:math';
-
+import 'package:sensors/sensors.dart';
 import 'package:flutter/material.dart';
 import 'package:lite_rolling_switch/lite_rolling_switch.dart';
 import 'package:quaddebugger/3dobj.dart';
@@ -11,6 +11,8 @@ import 'package:web_socket_channel/io.dart';
 import 'package:connectivity/connectivity.dart';
 import 'package:web_socket_channel/status.dart' as status;
 import 'package:syncfusion_flutter_charts/charts.dart';
+
+import 'angletrack.dart';
 
 class MyHomePage extends StatefulWidget {
   MyHomePage({this.title});
@@ -43,7 +45,7 @@ class _MyHomePageState extends State<MyHomePage> {
   bool connected = false;
   var subscription;
   bool armed = false;
-
+  double angle = 0;
   bool x = false;
 
   List<String> pids = ['0', '0', '0', '0', '0', '0', '0', '0', '0']; // rpy, pid
@@ -84,7 +86,9 @@ class _MyHomePageState extends State<MyHomePage> {
   void setSettings() async {
     SharedPreferences s = await SharedPreferences.getInstance();
     s.setString('pidGains', pids.join(';'));
+    // s.setString('trimText', 'r4;1500;1500;1500;1500;');
     s.setString('trimText', trimText);
+    print("SAVING: ${pids}, ${trimText}");
   }
 
   void getSettings() async {
@@ -92,11 +96,19 @@ class _MyHomePageState extends State<MyHomePage> {
     pidGainsText = s.getString('pidGains');
     pids = pidGainsText.split(';');
     trimText = s.getString('trimText');
+    print('GETTING FROM MEMORY: ${pids} and ${trimText}');
+
+    if (trimText != null) {
+      trims = trimText.split(';');
+      trims.remove('r4');
+    }
+
     if (pidGainsText == null) {
       pids = ['0', '0', '0', '0', '0', '0', '0', '0', '0'];
     }
     if (trimText == null) {
       trimText = 'r4;1500;1500;1500;1500;';
+      trims = ['1500', '1500', '1500', '1500'];
     }
     setState(() {});
   }
@@ -131,6 +143,7 @@ class _MyHomePageState extends State<MyHomePage> {
   @override
   void initState() {
     super.initState();
+
     getSettings();
     DronePose.x = 0;
     DronePose.y = 0;
@@ -191,17 +204,22 @@ class _MyHomePageState extends State<MyHomePage> {
           if (message[1] == '0') {
             // throttles
             currentState = "ARMED";
-
-            // print(message.split(';'));
-            motor4.add(GraphData(i, int.parse(message.split(';')[4])));
-            if (motor4.length >= maxLengthGraph) {
-              motor4 = motor4.reversed
+            var x = message.split(';');
+            // print(x);
+            for (int i = 1; i <= 4; i++) {
+              if (x[i].length != 4) {
+                return;
+              }
+            }
+            motor1.add(GraphData(i, int.parse(x[1])));
+            if (motor1.length >= maxLengthGraph) {
+              motor1 = motor1.reversed
                   .toList()
                   .sublist(0, maxLengthGraph)
                   .reversed
                   .toList();
             }
-            motor2.add(GraphData(i, int.parse(message.split(';')[2])));
+            motor2.add(GraphData(i, int.parse(x[2])));
             if (motor2.length >= maxLengthGraph) {
               motor2 = motor2.reversed
                   .toList()
@@ -209,7 +227,8 @@ class _MyHomePageState extends State<MyHomePage> {
                   .reversed
                   .toList();
             }
-            motor3.add(GraphData(i, int.parse(message.split(';')[3])));
+
+            motor3.add(GraphData(i, int.parse(x[3])));
             if (motor3.length >= maxLengthGraph) {
               motor3 = motor3.reversed
                   .toList()
@@ -217,9 +236,9 @@ class _MyHomePageState extends State<MyHomePage> {
                   .reversed
                   .toList();
             }
-            motor1.add(GraphData(i, int.parse(message.split(';')[1])));
-            if (motor1.length >= maxLengthGraph) {
-              motor1 = motor1.reversed
+            motor4.add(GraphData(i, int.parse(x[4])));
+            if (motor4.length >= maxLengthGraph) {
+              motor4 = motor4.reversed
                   .toList()
                   .sublist(0, maxLengthGraph)
                   .reversed
@@ -230,6 +249,7 @@ class _MyHomePageState extends State<MyHomePage> {
           } else if (message[1] == '1') {
             //SET angles - <d1;x;y;z>
             var poses = message.split(';');
+
             DronePose.y = double.parse(poses[1]);
             DronePose.x = double.parse(poses[2]);
             DronePose.z = double.parse(poses[3]);
@@ -267,8 +287,14 @@ class _MyHomePageState extends State<MyHomePage> {
 
   void sendMessage(String text) {
     if (connected) {
+      if (text.length > 30) {
+        text = text.substring(0, 30);
+      } else {
+        text = text + '                                                     ';
+        text = text.substring(0, 30);
+      }
       channel.sink.add(text);
-      print("Sending: $text");
+      print("Sending: $text, ${text.length}");
       // channel.sink.close(status.goingAway);
     } else {
       print("Not connected");
@@ -292,7 +318,6 @@ class _MyHomePageState extends State<MyHomePage> {
                   onChanged: (value) {
                     customMsg = value;
                   },
-                  keyboardType: TextInputType.number,
                 ),
               )),
           actions: <Widget>[
@@ -408,8 +433,7 @@ class _MyHomePageState extends State<MyHomePage> {
                 pidGainsText = '$requestText;' +
                     pidGainsText +
                     ';                         ';
-                print(pidGainsText);
-                print(pidGainsText.length);
+
                 sendMessage(pidGainsText);
                 Navigator.of(context).pop();
               },
@@ -514,9 +538,10 @@ class _MyHomePageState extends State<MyHomePage> {
               child: new Text("Send"),
               onPressed: () {
                 trimText = trims.join(';');
-                trimText = 'r4;' + trimText + ';                         ';
-                print(trimText);
-                print(trimText.length);
+                print('JOINED: ${trimText}');
+
+                trimText = 'r4;' + trimText + '                          ';
+
                 sendMessage(trimText);
                 Navigator.of(context).pop();
               },
@@ -560,7 +585,17 @@ class _MyHomePageState extends State<MyHomePage> {
                   MaterialPageRoute(
                       builder: (BuildContext context) => AcroModePage()));
             },
-          )
+          ),
+          // IconButton(
+          //   icon: Icon(Icons.adb),
+          //   tooltip: "Tracker",
+          //   onPressed: () {
+          //     Navigator.push(
+          //         context,
+          //         MaterialPageRoute(
+          //             builder: (BuildContext context) => AngleTrack()));
+          //   },
+          // )
         ],
       ),
       body: Stack(
@@ -579,28 +614,41 @@ class _MyHomePageState extends State<MyHomePage> {
                       style:
                           TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
                   DataTable(columns: [
-                    DataColumn(label: Text("Label", textAlign: TextAlign.center,)),
+                    DataColumn(
+                        label: Text(
+                      "Label",
+                      textAlign: TextAlign.center,
+                    )),
                     DataColumn(label: Text("Kp", textAlign: TextAlign.center)),
                     DataColumn(label: Text("Ki", textAlign: TextAlign.center)),
                     DataColumn(label: Text("Kd", textAlign: TextAlign.center)),
                   ], rows: [
                     DataRow(cells: [
                       DataCell(Text("Roll", textAlign: TextAlign.center)),
-                      DataCell(Text(pids[0].toString(), textAlign: TextAlign.center)),
-                      DataCell(Text(pids[3].toString(), textAlign: TextAlign.center)),
-                      DataCell(Text(pids[6].toString(), textAlign: TextAlign.center)),
+                      DataCell(Text(pids[0].toString(),
+                          textAlign: TextAlign.center)),
+                      DataCell(Text(pids[3].toString(),
+                          textAlign: TextAlign.center)),
+                      DataCell(Text(pids[6].toString(),
+                          textAlign: TextAlign.center)),
                     ]),
                     DataRow(cells: [
                       DataCell(Text("Pitch", textAlign: TextAlign.center)),
-                      DataCell(Text(pids[1].toString(), textAlign: TextAlign.center)),
-                      DataCell(Text(pids[4].toString(), textAlign: TextAlign.center)),
-                      DataCell(Text(pids[7].toString(), textAlign: TextAlign.center)),
+                      DataCell(Text(pids[1].toString(),
+                          textAlign: TextAlign.center)),
+                      DataCell(Text(pids[4].toString(),
+                          textAlign: TextAlign.center)),
+                      DataCell(Text(pids[7].toString(),
+                          textAlign: TextAlign.center)),
                     ]),
                     DataRow(cells: [
                       DataCell(Text("Yaw", textAlign: TextAlign.center)),
-                      DataCell(Text(pids[2].toString(), textAlign: TextAlign.center)),
-                      DataCell(Text(pids[5].toString(), textAlign: TextAlign.center)),
-                      DataCell(Text(pids[8].toString(), textAlign: TextAlign.center)),
+                      DataCell(Text(pids[2].toString(),
+                          textAlign: TextAlign.center)),
+                      DataCell(Text(pids[5].toString(),
+                          textAlign: TextAlign.center)),
+                      DataCell(Text(pids[8].toString(),
+                          textAlign: TextAlign.center)),
                     ]),
                     DataRow(cells: [
                       DataCell(Text("Send")),
@@ -647,6 +695,12 @@ class _MyHomePageState extends State<MyHomePage> {
                     width: MediaQuery.of(context).size.width,
                     height: 450,
                     child: PageView(controller: pageController, children: [
+                      AngleTrack((double angle) {
+                        // sendMessage(angle);
+                        angle =  ((angle*10).toInt())/10;
+                        print("r7;$angle;0;0;");
+                        sendMessage("r7;$angle;0;0;");
+                      }),
                       Column(
                         children: <Widget>[
                           Center(
@@ -672,7 +726,7 @@ class _MyHomePageState extends State<MyHomePage> {
                               ),
                               series: <LineSeries<GraphData, dynamic>>[
                                 LineSeries<GraphData, dynamic>(
-                                    dataSource: motor4,
+                                    dataSource: motor1,
                                     xValueMapper: (GraphData sales, _) =>
                                         sales.timestamp,
                                     yValueMapper: (GraphData sales, _) {
@@ -685,7 +739,7 @@ class _MyHomePageState extends State<MyHomePage> {
                                     dataLabelSettings:
                                         DataLabelSettings(isVisible: false)),
                                 LineSeries<GraphData, dynamic>(
-                                    dataSource: motor1,
+                                    dataSource: motor2,
                                     xValueMapper: (GraphData sales, _) =>
                                         sales.timestamp,
                                     yValueMapper: (GraphData sales, _) =>
@@ -707,7 +761,7 @@ class _MyHomePageState extends State<MyHomePage> {
                                     dataLabelSettings:
                                         DataLabelSettings(isVisible: false)),
                                 LineSeries<GraphData, dynamic>(
-                                    dataSource: motor2,
+                                    dataSource: motor4,
                                     xValueMapper: (GraphData sales, _) =>
                                         sales.timestamp,
                                     yValueMapper: (GraphData sales, _) =>

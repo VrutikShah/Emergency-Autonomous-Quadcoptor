@@ -42,7 +42,7 @@ extern "C" {
 
 /* Exported constants --------------------------------------------------------*/
 /* USER CODE BEGIN EC */
-
+extern int motorsInit;
 /* USER CODE END EC */
 
 /* Exported macro ------------------------------------------------------------*/

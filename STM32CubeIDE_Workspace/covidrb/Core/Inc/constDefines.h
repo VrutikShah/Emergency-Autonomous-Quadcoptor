@@ -34,9 +34,9 @@
 #define TRIM_SEND "4"
 #define PID_KI_SEND "5"
 #define PID_KD_SEND "6"
-
+#define SET_SETPOINT "7"
 
 
 #endif /* INC_CONSTDEFINES_H_ */
-
+extern short imuInit;
 void blinkLED(int numberOn, int duration);

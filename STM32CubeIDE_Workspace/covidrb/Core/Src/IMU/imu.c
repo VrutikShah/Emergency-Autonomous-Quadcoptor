@@ -276,7 +276,14 @@ void setTrimValues(uint8_t trimString[]) {
 	trim[3] = atoi(ptr);
 
 }
-
+void resetPID(void) {
+	for (int i = 0; i < 4; i++) {
+		error[i] = 0;
+		preverror[i] = 0;
+		errorDiff[i] = 0;
+		errorSum[i] = 0;
+	}
+}
 void setPidValues(uint8_t pidString[], uint8_t type) {
 
 //	int init_size = strlen(pidString);
@@ -311,13 +318,26 @@ void setPidValues(uint8_t pidString[], uint8_t type) {
 		blinkLED(3, 1000);
 	}
 
-	for (int i = 0; i < 4; i++) {
-		error[i] = 0;
-		preverror[i] = 0;
-		errorDiff[i] = 0;
-		errorSum[i] = 0;
-	}
+	resetPID();
 
+}
+
+void setSetpoint(uint8_t setpoints[]) {
+
+//	int init_size = strlen(pidString);
+	char delim[] = ";";
+	//r7;1;1;1;
+	char *ptr = strtok(setpoints, delim); //remove the first r7 crap
+
+	ptr = strtok(NULL, delim); //roll
+	setpoint[0] = atof(ptr);
+	ptr = strtok(NULL, delim); //pitch
+	setpoint[1] = atof(ptr);
+	ptr = strtok(NULL, delim); //yaw
+	setpoint[2] = atof(ptr);
+//	blinkLED(3, 1000);
+
+	HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_9);
 }
 
 void calibrateIMU(void) {
@@ -337,10 +357,7 @@ void calibrateIMU(void) {
 	uint8_t debugData1[] = IMU_READY;
 	HAL_UART_Transmit_DMA(&huart3, debugData1, sizeof(debugData1));
 }
-//void setTrim(void) {
-//	Read_DMP();
-//
-//}
+
 const int scale = 1;
 void computePID(long dt) {
 	//roll0 pitch1 yaw2
@@ -348,37 +365,15 @@ void computePID(long dt) {
 	for (int i = 0; i < 3; i++) {
 
 		error[i] = setpoint[i] - (angles[i] - calibrators[i]);
-		errorDiff[i] = (error[i] - preverror[i]) / dt;
-		errorSum[i] += (error[i] + preverror[i]) * dt;
+		errorDiff[i] = (error[i] - preverror[i]) / dt; //kd increases by 3x
+		errorSum[i] += error[i] * dt; //ki decreases by 3x
 		output[i] = (error[i] * Kp[i] + errorDiff[i] * Kd[i]
 				+ errorSum[i] * Ki[i]);
 
 		preverror[i] = error[i];
 	}
 	output[2] = 0;
-	/*
-	 * output[0] - roll
-	 * output[1] - pitch
-	 * output[2]- yaw
-	 * Drone :
-	 *
-	 *		0 (TEST)        1
-	 *		 \             /
-	 *  	  \     	  /
-	 *	       \   		 /
-	 *    	    \ 		/
-	 *    	     = = = =
-	 *          /       \
-	 *	       /  		 \
-	 *    	  /   		  \
-	 *   	 /    		   \
-	 *	    2      			3 (TEST)
-	 *
-	 *		1 - outs[0] - channel 4 - A11
-	 *		2 - outs[1] - channel 3 - A10
-	 *		3 - outs[2] - channel 2 - A09
-	 *		4 - outs[3] - channel 1 - A08
-	 */
+
 //	int temp = trim[0]
 //			+ (output[3] - output[1] - output[0] - output[2]) * scale;
 //	if (abs(temp - prevouts[0]) > 8) {
@@ -403,9 +398,34 @@ void computePID(long dt) {
 //		outs[3] = temp;
 //		prevouts[3] = outs[3];
 //	}
+
+	/*
+	 * output[0] - roll
+	 * output[1] - pitch
+	 * output[2]- yaw
+	 * Drone :
+	 *
+	 *				0 (TEST)        1
+	 *				 \             /
+	 *  			  \  PITCH UP /
+	 *			       \   		 /
+	 *    			    \ 		/
+	 * 		ROLL LEFT    = = = =		ROLL RIGHT
+	 *      		    /       \
+ *	    		   /  		 \
+ *    			  /  PITCH DN \
+ *   			 /    		   \
+ *	   			2      			3 (TEST)
+	 *
+	 *		1 - outs[0] - channel 4 - A11
+	 *		2 - outs[1] - channel 3 - A10
+	 *		3 - outs[2] - channel 2 - A09
+	 *		4 - outs[3] - channel 1 - A08
+	 */
+	//Motor = trim_o  + (throttle  - pitch_out + roll_out  - yaw__out_)* scale
 	outs[0] = trim[0] + (output[3] - output[1] - output[0] - output[2]) * scale;
-	outs[1] = trim[1] + (output[3] + output[1] - output[0] + output[2]) * scale;
-	outs[2] = trim[2] + (output[3] - output[1] + output[0] + output[2]) * scale;
+	outs[1] = trim[1] + (output[3] - output[1] + output[0] + output[2]) * scale;
+	outs[2] = trim[2] + (output[3] + output[1] - output[0] + output[2]) * scale;
 	outs[3] = trim[3] + (output[3] + output[1] + output[0] - output[2]) * scale;
 	for (int i = 0; i < 4; i++) {
 		if (outs[i] > maxVal[i]) {
@@ -418,8 +438,12 @@ void computePID(long dt) {
 }
 char debugval[30] = "";
 int debugCounter = 0;
+long time = 0;
+
 void debugIMU() {
 	if (transmitComplete != 1) {
+		return;
+	} else if (abs(HAL_GetTick() - time) < 50) {
 		return;
 	}
 	for (int i = 0; i < 29; i++) {
@@ -431,20 +455,19 @@ void debugIMU() {
 	if (debugCounter == 0) {
 		snprintf(debugval, 30, "<d0;%d;%d;%d;%d;>", outs[0], outs[1], outs[2],
 				outs[3]); // motor vals
-		debugCounter = 1;
-	} else if (debugCounter == 1) {
-		snprintf(debugval, 30, "<d1;%d;%d;%d;%d;>", (int) error[0],
-				(int) error[1], (int) error[2], (int) error[3]);
-		debugCounter = 0;
 	}
-	else if (debugCounter == 2) {
-			snprintf(debugval, 30, "<SUM;%d;%d;%d;%d;>", (int) errorSum[0],
-					(int) errorSum[1], (int) errorSum[2], (int) errorSum[3]);
-			debugCounter = 0;
-		}
+	time = HAL_GetTick();
+//		debugCounter = 1;
+//	} else if (debugCounter == 1) {
+//		snprintf(debugval, 30, "<d1;%d;%d;%d;%d;>", (int) error[0],
+//				(int) error[1], (int) error[2], (int) error[3]);
+//		debugCounter = 0;
+//	} else if (debugCounter == 2) {
+//		snprintf(debugval, 30, "<SUM;%d;%d;%d;%d;>", (int) errorSum[0],
+//				(int) errorSum[1], (int) errorSum[2], (int) errorSum[3]);
+//		debugCounter = 0;
+//	}
 	uartTransmit(debugval);
-	//	HAL_UART_Transmit_DMA(&huart3, debugData, sizeof(debugData));
-	//	HAL_Delay(pidLoopDelay);
 }
 
 void sendInitValues() {
@@ -499,6 +522,7 @@ void DMP_Init(void) {
 		run_self_test();
 		while (mpu_set_dmp_state(1))
 			log_i("mpu_set_dmp_state complete ......\r\n");
+		imuInit = 1;
 	}
 }
 /**************************************************************************

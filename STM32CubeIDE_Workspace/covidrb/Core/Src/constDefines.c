@@ -8,9 +8,9 @@
 #include "constDefines.h"
 #include "gpio.h"
 
-
+short imuInit = 0;
 void blinkLED(int numberOn, int duration) {
-	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_9, GPIO_PIN_SET);
+	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_9, GPIO_PIN_SET); //Indicate ready to fly!
 	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_8, GPIO_PIN_RESET);
 	if (numberOn == 0) {
 		return;
@@ -24,6 +24,7 @@ void blinkLED(int numberOn, int duration) {
 		HAL_Delay((int) delay / 2);
 	}
 	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_8, GPIO_PIN_SET);
-	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_9, GPIO_PIN_RESET);
+	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_9, GPIO_PIN_RESET); //Indicate ready to fly!
+
 
 }

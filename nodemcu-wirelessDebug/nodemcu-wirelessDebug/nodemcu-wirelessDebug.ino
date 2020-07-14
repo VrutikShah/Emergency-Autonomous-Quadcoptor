@@ -9,6 +9,13 @@
 
 SoftwareSerial SUART( D1, D2); //SRX  = DPin-D2; STX = DPin-D1
 
+const int rollPin = D5;
+const int pitchPin = D6;
+const int yawPin = D6;
+const int throttlePin = D8;
+
+
+
 const char* ssid = "LMEE";
 const char* password = "praveenv";
 
@@ -25,18 +32,6 @@ void setup() {
   Serial.setDebugOutput(true);
   Serial.printf("\nStarting UART with stm32 at %d\n", SUARTBaud);
   SUART.begin(SUARTBaud);   //NodeMCU prefers higher Bd to work
-  //  WiFi.mode(WIFI_STA);
-  //  WiFi.begin(ssid, password);
-  //
-  //  Serial.print(" Connecting...");
-  //
-  //  while (WiFi.status() != WL_CONNECTED) {
-  //    Serial.print('.');
-  //    delay(500);
-  //   }
-
-  //    digitalWrite(LED_BUILTIN, HIGH);
-
   WiFi.mode(WIFI_AP);
   WiFi.softAP("ESP8266");
   IPAddress IP = WiFi.softAPIP();
@@ -46,6 +41,10 @@ void setup() {
   Serial.print("IP address: ");
   Serial.println(IP);
 
+  pinMode(LED_BUILTIN, OUTPUT);
+  pinMode(2, OUTPUT);
+  digitalWrite(LED_BUILTIN, LOW);
+  digitalWrite(2, LOW);
   webSocket.begin();
   webSocket.onEvent(webSocketEvent);
 
@@ -62,11 +61,11 @@ void loop() {
   flagExecute();
   while (SUART.available()) {
     webSocket.loop();
-    if(flag != 0){
+    if (flag != 0) {
       flagExecute();
       break;
     }
-    
+
     char c = SUART.read();
     Serial.write(c);
     if (c == '<') {
@@ -89,14 +88,28 @@ void loop() {
 }
 void flagExecute() {
   if (flag == 2) {
-    Serial.printf("[%u] get Text: %s\r\n", number, datapayload);
+    if (datapayload[0] == 't' && datapayload[1] == '0') {
+      // t0;1500;1493;1300;1599;
+      char *value[5];
+      char *ptr = strtok(datapayload, ";");  // remove t0 stuff
+      ptr = strtok(NULL, ";"); // roll
+      analogWrite(rollPin, atoi(ptr));
+      ptr = strtok(NULL,  ";"); // roll
+      analogWrite(pitchPin, atoi(ptr));
+      ptr = strtok(NULL, ";"); // roll
+      analogWrite(yawPin, atoi(ptr));
+      ptr = strtok(NULL, ";"); // roll
+      analogWrite(throttlePin, atoi(ptr));
+      return;
+    }
     received = "";
     i = 1;
     bytesSent = SUART.write(datapayload, 30);
-    Serial.print( bytesSent);
-    Serial.print(" (");
-    Serial.write(datapayload, 30);
-    Serial.println(") bytes were sent to stm32");
+    //    Serial.printf("[%u] get Text: %s\r\n", number, datapayload);
+    //    Serial.print( bytesSent);
+    //    Serial.print(" (");
+    //    Serial.write(datapayload, 30);
+    //    Serial.println(") bytes were sent to stm32");
     flag = 0;
   }
 }
@@ -113,7 +126,7 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length
       break;
     case WStype_CONNECTED:
       {
-       
+
         IPAddress ip = webSocket.remoteIP(num);
         webSocket.broadcastTXT("s2");
         Serial.printf("[%u] Connected from %d.%d.%d.%d url: %s\r\n", num, ip[0], ip[1], ip[2], ip[3], payload);
