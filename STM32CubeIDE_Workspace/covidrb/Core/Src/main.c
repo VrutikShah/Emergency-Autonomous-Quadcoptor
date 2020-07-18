@@ -178,15 +178,14 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
 	} else if (receivedData[1] == ACROMODE[0]) {
 		motorsInit = 2;
 		setMotorsAcro();
-	} else if (receivedData[1] == 'D') {
+	} else if (receivedData[1] == STOPDEBUG[0]) {
 		blinkLED(5, 1000);
 		if (enableDebug == 1) {
 			enableDebug = 0;
 		} else {
 			enableDebug = 1;
 		}
-	}
-	else if(receivedData[1] == SET_SETPOINT[0]){
+	} else if (receivedData[1] == SET_SETPOINT[0]) {
 		setSetpoint(receivedData);
 	}
 	HAL_UART_Receive_DMA(huart, receivedData, 30);
@@ -234,11 +233,6 @@ void droneInit(void) {
  * @brief  The application entry point.
  * @retval int
  */
-long prevTime = 0;
-long processTime = 0;
-long elapsedTime = 0;
-int n = 0;
-
 int main(void) {
 	/* USER CODE BEGIN 1 */
 
@@ -250,7 +244,10 @@ int main(void) {
 	HAL_Init();
 
 	/* USER CODE BEGIN Init */
-
+	long prevTime = 0;
+	long processTime = 0;
+	long elapsedTime = 0;
+	long n = 0;
 	/* USER CODE END Init */
 
 	/* Configure the system clock */

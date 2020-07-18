@@ -251,7 +251,7 @@ float Kp[4] = { 0, 0, 0, 0 };
 float Ki[4] = { 0, 0, 0, 0 };
 float Kd[4] = { 0, 0, 0, 0 };
 //roll, pitch, yaw, z axis
-float setpoint[4] = { 0.0, 0.0, 0.0, 0.0 };
+float setpoint[4] = { 30.0, 0.0, 0.0, 0.0 };
 float error[4] = { 0.0, 0.0, 0.0, 0.0 };
 float preverror[4] = { 0.0, 0.0, 0.0, 0.0 };
 float errorDiff[4] = { 0.0, 0.0, 0.0, 0.0 };
@@ -365,39 +365,14 @@ void computePID(long dt) {
 	for (int i = 0; i < 3; i++) {
 
 		error[i] = setpoint[i] - (angles[i] - calibrators[i]);
-		errorDiff[i] = (error[i] - preverror[i]) / dt; //kd increases by 3x
-		errorSum[i] += error[i] * dt; //ki decreases by 3x
+		errorDiff[i] = (error[i] - preverror[i]) / dt;
+		errorSum[i] += error[i] * dt;
 		output[i] = (error[i] * Kp[i] + errorDiff[i] * Kd[i]
 				+ errorSum[i] * Ki[i]);
 
 		preverror[i] = error[i];
 	}
 	output[2] = 0;
-
-//	int temp = trim[0]
-//			+ (output[3] - output[1] - output[0] - output[2]) * scale;
-//	if (abs(temp - prevouts[0]) > 8) {
-//		outs[0] = temp;
-//		prevouts[0] = outs[0];
-//	}
-//
-//	temp = trim[1] + (output[3] + output[1] - output[0] + output[2]) * scale;
-//	if (abs(temp - prevouts[1]) > 8) {
-//		outs[1] = temp;
-//		prevouts[1] = outs[1];
-//	}
-//
-//	temp = trim[2] + (output[3] - output[1] + output[0] + output[2]) * scale;
-//	if (abs(temp - prevouts[2]) > 8) {
-//		outs[2] = temp;
-//		prevouts[2] = outs[2];
-//	}
-//
-//	temp = trim[3] + (output[3] + output[1] + output[0] - output[2]) * scale;
-//	if (abs(temp - prevouts[3]) > 8) {
-//		outs[3] = temp;
-//		prevouts[3] = outs[3];
-//	}
 
 	/*
 	 * output[0] - roll
@@ -412,10 +387,10 @@ void computePID(long dt) {
 	 *    			    \ 		/
 	 * 		ROLL LEFT    = = = =		ROLL RIGHT
 	 *      		    /       \
- *	    		   /  		 \
- *    			  /  PITCH DN \
- *   			 /    		   \
- *	   			2      			3 (TEST)
+	 *	    		   /  		 \
+	 *    			  /  PITCH DN \
+	 *   			 /    		   \
+	 *	   			2      			3 (TEST)
 	 *
 	 *		1 - outs[0] - channel 4 - A11
 	 *		2 - outs[1] - channel 3 - A10

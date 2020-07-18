@@ -1,4 +1,8 @@
 import 'dart:math';
+import 'package:quaddebugger/constants.dart';
+import 'package:quaddebugger/joystick.dart';
+import 'package:quaddebugger/widgets/arming.dart';
+import 'package:quaddebugger/widgets/label.dart';
 import 'package:sensors/sensors.dart';
 import 'package:flutter/material.dart';
 import 'package:lite_rolling_switch/lite_rolling_switch.dart';
@@ -27,74 +31,15 @@ class _MyHomePageState extends State<MyHomePage> {
   PageController pageController = PageController(
     initialPage: 0,
   );
-  String ipAddress = "192.168.4.1:81";
-  var channel;
-  String consoleOut = "";
-  List<String> stringList;
+  String currentState = "NETWORK_DISCONNECTED";
   TextEditingController _controller =
       TextEditingController(text: "192.168.4.1:81");
-  int i = 0;
-  String currentState = "NETWORK_DISCONNECTED";
-  List<GraphData> motor4 = [GraphData(0, 0)];
-  List<GraphData> motor3 = [GraphData(0, 0)];
-  List<GraphData> motor2 = [GraphData(0, 0)];
-  List<GraphData> motor1 = [GraphData(0, 0)];
-  bool change = false;
-  String wifiSSID;
-  int maxLengthGraph = 60;
-  bool connected = false;
-  var subscription;
-  bool armed = false;
-  double angle = 0;
-  bool x = false;
-
-  List<String> pids = ['0', '0', '0', '0', '0', '0', '0', '0', '0']; // rpy, pid
-  String pidGainsText = 'r3;0;0;0;0;0;0;'; //motor2 motor3 motor1 || kp kd
-
-  var stateDecoder = <String, String>{
-    "s1": "NETWORK_DISCONNECTED",
-    "s2": "NETWORK_CONNECTED",
-    "s3": "DRONE_INIT",
-    "s4": "MOTORS_INIT",
-    "s5": "IMU_CALIBRATING",
-    "s6": "IMU_INIT",
-    "s7": "DISARMED",
-    "s8": "ARMED",
-    "s9": "IMU_READY",
-    "sA": " ESC_CALIBRATING",
-    "sB": "ARMED_ACRO",
-  };
-  var requestStateDecoder = <String, String>{
-    "ARM": "r0                                                          "
-        .substring(0, 30),
-    "DISARM": "r1                                                       "
-        .substring(0, 30),
-    "ACROMODE": "r2                                                     "
-        .substring(0, 30),
-    "PID_KI_SEND": "r6",
-    "PID_KP_SEND": "r3",
-    "PID_KD_SEND": "r5",
-    "ESC_CALIBRATE":
-        "r7                                                 ".substring(0, 30),
-  };
-  void setLabels() async {
-    SharedPreferences s = await SharedPreferences.getInstance();
-    s.setStringList('key', stateDecoder.keys.toList());
-    s.setStringList('labels', stateDecoder.values.toList());
-  }
-
-  void setSettings() async {
-    SharedPreferences s = await SharedPreferences.getInstance();
-    s.setString('pidGains', pids.join(';'));
-    // s.setString('trimText', 'r4;1500;1500;1500;1500;');
-    s.setString('trimText', trimText);
-    print("SAVING: ${pids}, ${trimText}");
-  }
-
+  
   void getSettings() async {
     SharedPreferences s = await SharedPreferences.getInstance();
     pidGainsText = s.getString('pidGains');
     pids = pidGainsText.split(';');
+    
     trimText = s.getString('trimText');
     print('GETTING FROM MEMORY: ${pids} and ${trimText}');
 
@@ -113,37 +58,13 @@ class _MyHomePageState extends State<MyHomePage> {
     setState(() {});
   }
 
-  void getLabels() async {
-    SharedPreferences s = await SharedPreferences.getInstance();
-    List<String> x = s.getStringList('key');
-    List<String> y = s.getStringList('labels');
-    if (x == null || y == null) {
-      stateDecoder = <String, String>{
-        "s1": "NETWORK_DISCONNECTED",
-        "s2": "NETWORK_CONNECTED",
-        "s3": "DRONE_INIT",
-        "s4": "MOTORS_INIT",
-        "s5": "IMU_CALIBRATING",
-        "s6": "IMU_INIT",
-        "s7": "DISARMED",
-        "s8": "ARMED",
-        "s9": "IMU_READY",
-        "sA": " ESC_CALIBRATING",
-        "sB": "ARMED_ACRO"
-      };
-      setLabels();
-      return;
-    }
-    for (int i = 0; i < x.length; i++) {
-      stateDecoder[x[i]] = y[i];
-    }
-    setLabels();
-  }
-
   @override
   void initState() {
     super.initState();
-
+    rebuildCallback = () {
+      setState(() {});
+    };
+    
     getSettings();
     DronePose.x = 0;
     DronePose.y = 0;
@@ -167,138 +88,6 @@ class _MyHomePageState extends State<MyHomePage> {
       setState(() {});
     });
     // connectWebsocket();
-  }
-
-  GlobalKey<ScaffoldState> key = GlobalKey<ScaffoldState>();
-  void connectWebsocket() {
-    print("Connecting...");
-    // channel = IOWebSocketChannel.connect('wss://echo.websocket.org');
-    channel = IOWebSocketChannel.connect('ws://' + ipAddress);
-
-    channel.stream.listen(
-      (message) {
-        // print("Received: $message");
-        connected = true;
-        consoleOut += message;
-        stringList = consoleOut.split('\n');
-        stringList = consoleOut.split('\n');
-
-        if (stringList.length >= 20) {
-          stringList =
-              stringList.reversed.toList().sublist(0, 20).reversed.toList();
-        }
-        consoleOut = stringList.join('\n');
-
-        if (message[0] == 's') {
-          //state function.
-          change = !change;
-          currentState = stateDecoder[message.substring(0, 2)];
-          if (currentState == "DISARMED") {
-            armed = false;
-          }
-          setState(() {});
-          return;
-        } else if (message[0] == 'r') {
-          return;
-        } else if (message[0] == 'd') {
-          if (message[1] == '0') {
-            // throttles
-            currentState = "ARMED";
-            var x = message.split(';');
-            // print(x);
-            for (int i = 1; i <= 4; i++) {
-              if (x[i].length != 4) {
-                return;
-              }
-            }
-            motor1.add(GraphData(i, int.parse(x[1])));
-            if (motor1.length >= maxLengthGraph) {
-              motor1 = motor1.reversed
-                  .toList()
-                  .sublist(0, maxLengthGraph)
-                  .reversed
-                  .toList();
-            }
-            motor2.add(GraphData(i, int.parse(x[2])));
-            if (motor2.length >= maxLengthGraph) {
-              motor2 = motor2.reversed
-                  .toList()
-                  .sublist(0, maxLengthGraph)
-                  .reversed
-                  .toList();
-            }
-
-            motor3.add(GraphData(i, int.parse(x[3])));
-            if (motor3.length >= maxLengthGraph) {
-              motor3 = motor3.reversed
-                  .toList()
-                  .sublist(0, maxLengthGraph)
-                  .reversed
-                  .toList();
-            }
-            motor4.add(GraphData(i, int.parse(x[4])));
-            if (motor4.length >= maxLengthGraph) {
-              motor4 = motor4.reversed
-                  .toList()
-                  .sublist(0, maxLengthGraph)
-                  .reversed
-                  .toList();
-            }
-            i = i + 1;
-            setState(() {});
-          } else if (message[1] == '1') {
-            //SET angles - <d1;x;y;z>
-            var poses = message.split(';');
-
-            DronePose.y = double.parse(poses[1]);
-            DronePose.x = double.parse(poses[2]);
-            DronePose.z = double.parse(poses[3]);
-
-            setState(() {});
-          }
-        }
-      },
-      onDone: () {
-        connected = false;
-        armed = false;
-        print("Connection ended");
-        key.currentState.hideCurrentSnackBar();
-        key.currentState.showSnackBar(SnackBar(
-          content: Text("Disconnected"),
-        ));
-        currentState = stateDecoder['s1'];
-        setState(() {});
-      },
-      onError: (error) {
-        print("Error: $error");
-        connected = false;
-        armed = false;
-        key.currentState.hideCurrentSnackBar();
-        key.currentState.showSnackBar(SnackBar(
-          content: Text(error),
-        ));
-        currentState = stateDecoder['s1'];
-        setState(() {});
-      },
-    );
-
-    setState(() {});
-  }
-
-  void sendMessage(String text) {
-    if (connected) {
-      if (text.length > 30) {
-        text = text.substring(0, 30);
-      } else {
-        text = text + '                                                     ';
-        text = text.substring(0, 30);
-      }
-      channel.sink.add(text);
-      print("Sending: $text, ${text.length}");
-      // channel.sink.close(status.goingAway);
-    } else {
-      print("Not connected");
-    }
   }
 
   void sendCustomMessage() async {
@@ -331,7 +120,7 @@ class _MyHomePageState extends State<MyHomePage> {
                   customMsg =
                       customMsg + '                                          ';
                   customMsg = customMsg.substring(0, 30);
-                  sendMessage(customMsg);
+                  sendMessage(customMsg, connected, channel);
                   Navigator.of(context).pop();
                 }
               },
@@ -434,7 +223,7 @@ class _MyHomePageState extends State<MyHomePage> {
                     pidGainsText +
                     ';                         ';
 
-                sendMessage(pidGainsText);
+                sendMessage(pidGainsText, connected, channel);
                 Navigator.of(context).pop();
               },
             ),
@@ -447,8 +236,6 @@ class _MyHomePageState extends State<MyHomePage> {
     });
   }
 
-  List<String> trims = ['1500', '1500', '1500', '1500'];
-  String trimText = 'r4;1500;1500;1500;1500;';
   void sendTrims() async {
     await showDialog(
       context: context,
@@ -542,7 +329,7 @@ class _MyHomePageState extends State<MyHomePage> {
 
                 trimText = 'r4;' + trimText + '                          ';
 
-                sendMessage(trimText);
+                sendMessage(trimText, connected, channel);
                 Navigator.of(context).pop();
               },
             ),
@@ -555,60 +342,259 @@ class _MyHomePageState extends State<MyHomePage> {
     });
   }
 
+  void connectWebsocket() {
+    print("Connecting...");
+    // channel = IOWebSocketChannel.connect('wss://echo.websocket.org');
+    channel = IOWebSocketChannel.connect('ws://' + ipAddress);
+    sendMessage("text", true, channel);
+    channel.stream.listen(
+      (message) {
+        connected = true;
+        consoleOut += message;
+        stringList = consoleOut.split('\n');
+        stringList = consoleOut.split('\n');
+        print(message);
+        // joystickKey.currentState.showSnackBar(SnackBar(content: Text(consoleOut),));
+        rebuild();
+        if (stringList.length >= 20) {
+          stringList =
+              stringList.reversed.toList().sublist(0, 20).reversed.toList();
+        }
+        consoleOut = stringList.join('\n');
+
+        if (message[0] == 's') {
+          //state function.
+          currentState = stateDecoder[message.substring(0, 2)];
+          change = !change;
+
+          print(currentState);
+          if (currentState == "DISARMED") {
+            armed = false;
+          }
+          rebuild();
+          return;
+        } else if (message[0] == 'r') {
+          return;
+        } else if (message[0] == 'd') {
+          if (message[1] == '0') {
+            // throttles
+            currentState = "ARMED";
+            var x = message.split(';');
+            // print(x);
+            for (int i = 1; i <= 4; i++) {
+              if (x[i].length != 4) {
+                return;
+              }
+            }
+            motor1.add(GraphData(i, int.parse(x[1])));
+            if (motor1.length >= maxLengthGraph) {
+              motor1 = motor1.reversed
+                  .toList()
+                  .sublist(0, maxLengthGraph)
+                  .reversed
+                  .toList();
+            }
+            motor2.add(GraphData(i, int.parse(x[2])));
+            if (motor2.length >= maxLengthGraph) {
+              motor2 = motor2.reversed
+                  .toList()
+                  .sublist(0, maxLengthGraph)
+                  .reversed
+                  .toList();
+            }
+
+            motor3.add(GraphData(i, int.parse(x[3])));
+            if (motor3.length >= maxLengthGraph) {
+              motor3 = motor3.reversed
+                  .toList()
+                  .sublist(0, maxLengthGraph)
+                  .reversed
+                  .toList();
+            }
+            motor4.add(GraphData(i, int.parse(x[4])));
+            if (motor4.length >= maxLengthGraph) {
+              motor4 = motor4.reversed
+                  .toList()
+                  .sublist(0, maxLengthGraph)
+                  .reversed
+                  .toList();
+            }
+            i = i + 1;
+            rebuild();
+          } else if (message[1] == '1') {
+            //SET angles - <d1;x;y;z>
+            var poses = message.split(';');
+
+            DronePose.y = double.parse(poses[1]);
+            DronePose.x = double.parse(poses[2]);
+            DronePose.z = double.parse(poses[3]);
+
+            rebuild();
+          }
+        }
+      },
+      onDone: () {
+        connected = false;
+        armed = false;
+        print("Connection ended");
+        key.currentState.hideCurrentSnackBar();
+
+        key.currentState.showSnackBar(SnackBar(
+          content: Text("Disconnected"),
+        ));
+        currentState = stateDecoder['s1'];
+        rebuild();
+      },
+      onError: (error) {
+        print("Error: $error");
+        connected = false;
+        armed = false;
+        key.currentState.hideCurrentSnackBar();
+        key.currentState.showSnackBar(SnackBar(
+          content: Text(error),
+        ));
+        currentState = stateDecoder['s1'];
+        rebuild();
+      },
+    );
+  }
+
+  int i = 0;
+  void rebuild() {
+    labelState = currentState;
+    rebuildCallback();
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      key: key,
-      appBar: AppBar(
-        title: Text(widget.title),
-        actions: <Widget>[
-          IconButton(
-            icon: Icon(Icons.message),
-            tooltip: "Edit label maps",
-            onPressed: () {
-              if (connected == true) {
-                sendCustomMessage();
-              } else {
-                key.currentState.showSnackBar(SnackBar(
-                  content: Text("Not connected"),
-                ));
-                // }
-              }
-            },
-          ),
-          IconButton(
-            icon: Icon(Icons.play_arrow),
-            tooltip: "AcroMode",
-            onPressed: () {
-              Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                      builder: (BuildContext context) => AcroModePage()));
-            },
-          ),
-          // IconButton(
-          //   icon: Icon(Icons.adb),
-          //   tooltip: "Tracker",
-          //   onPressed: () {
-          //     Navigator.push(
-          //         context,
-          //         MaterialPageRoute(
-          //             builder: (BuildContext context) => AngleTrack()));
-          //   },
-          // )
-        ],
-      ),
-      body: Stack(
-        children: <Widget>[
-          SingleChildScrollView(
+    print("REBUILDING HOME");
+    return SafeArea(
+      child: Scaffold(
+        key: key,
+        appBar: AppBar(
+          title: Text(widget.title),
+          actions: <Widget>[
+            IconButton(
+              icon: Icon(Icons.message),
+              tooltip: "Edit label maps",
+              onPressed: () {
+                if (connected == true) {
+                  sendCustomMessage();
+                } else {
+                  key.currentState.showSnackBar(SnackBar(
+                    content: Text("Not connected"),
+                  ));
+                  // }
+                }
+              },
+            ),
+            IconButton(
+              icon: Icon(Icons.play_arrow),
+              tooltip: "AcroMode",
+              onPressed: () {
+                Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (BuildContext context) => AcroModePage()));
+              },
+            ),
+            IconButton(
+              icon: Icon(Icons.play_circle_outline),
+              tooltip: "Joystick",
+              onPressed: () {
+                Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (BuildContext context) => JoyStick()))
+                    .then((c) {
+                  rebuildCallback = () {
+                    setState(() {});
+                  };
+                });
+              },
+            )
+          ],
+        ),
+        body: NestedScrollView(
+          headerSliverBuilder: (BuildContext context, bool innerBoxIsScrolled) {
+            return <Widget>[
+              SliverAppBar(
+                expandedHeight: 150.0,
+                floating: false,
+                pinned: true,
+                elevation: 0,
+                backgroundColor: Colors.white.withAlpha(120),
+                flexibleSpace: FlexibleSpaceBar(
+                    centerTitle: true,
+                    title: StateLabel(currentState),
+                    background: Column(
+                      children: <Widget>[
+                        Container(
+                          // color: Colors.white,
+                          height: 150,
+                          child: Column(children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              crossAxisAlignment: CrossAxisAlignment.center,
+                              children: <Widget>[
+                                Padding(
+                                  padding: const EdgeInsets.fromLTRB(
+                                      16.0, 16.0, 16.0, 0),
+                                  child: Container(
+                                    width:
+                                        MediaQuery.of(context).size.width * 0.5,
+                                    height: MediaQuery.of(context).size.height *
+                                        0.1,
+                                    child: TextField(
+                                      controller: _controller,
+                                      // keyboardType: TextInputType.number,
+                                      decoration: InputDecoration(
+                                          border: OutlineInputBorder(),
+                                          hintText: "Websocket Address"),
+                                      onChanged: (value) {
+                                        ipAddress = value;
+                                      },
+                                    ),
+                                  ),
+                                ),
+                                RaisedButton(
+                                  onPressed: () {
+                                    connectWebsocket();
+                                    // x = !x;
+                                  },
+                                  child: Text("Connect"),
+                                ),
+                                SizedBox(
+                                  width: 10,
+                                ),
+                                Icon(
+                                  Icons.brightness_1,
+                                  color: (connected == true)
+                                      ? Colors.green
+                                      : Colors.red,
+                                ),
+                              ],
+                            ),
+                            SizedBox(
+                              height: 10,
+                            ),
+                          ]),
+                        ),
+                      ],
+                    )),
+
+              ),
+            ];
+          },
+          body: SingleChildScrollView(
+            // height: 1000,
+            // color:Colors.black,
             child: Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.start,
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: <Widget>[
-                  SizedBox(
-                    height: 230,
-                  ),
+                  ArmingWidget(),
                   Text("PID Gains",
                       textAlign: TextAlign.center,
                       style:
@@ -695,12 +681,6 @@ class _MyHomePageState extends State<MyHomePage> {
                     width: MediaQuery.of(context).size.width,
                     height: 450,
                     child: PageView(controller: pageController, children: [
-                      AngleTrack((double angle) {
-                        // sendMessage(angle);
-                        angle =  ((angle*10).toInt())/10;
-                        print("r7;$angle;0;0;");
-                        sendMessage("r7;$angle;0;0;");
-                      }),
                       Column(
                         children: <Widget>[
                           Center(
@@ -860,112 +840,14 @@ class _MyHomePageState extends State<MyHomePage> {
                       ),
                     ]),
                   ),
+                  // ArmingWidget(),
+                  // AngleTrack(channel, connected),
                 ],
               ),
             ),
           ),
-          Container(
-            color: Colors.white,
-            height: 220,
-            child: Column(children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: <Widget>[
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 0),
-                    child: Container(
-                      width: MediaQuery.of(context).size.width * 0.5,
-                      height: MediaQuery.of(context).size.height * 0.1,
-                      child: TextField(
-                        controller: _controller,
-                        // keyboardType: TextInputType.number,
-                        decoration: InputDecoration(
-                            border: OutlineInputBorder(),
-                            hintText: "Websocket Address"),
-                        onChanged: (value) {
-                          ipAddress = value;
-                        },
-                      ),
-                    ),
-                  ),
-                  RaisedButton(
-                    onPressed: () {
-                      connectWebsocket();
-                      // x = !x;
-                    },
-                    child: Text("Connect"),
-                  ),
-                  SizedBox(
-                    width: 10,
-                  ),
-                  Icon(
-                    Icons.brightness_1,
-                    color: (connected == true) ? Colors.green : Colors.red,
-                  ),
-                ],
-              ),
-              AbsorbPointer(
-                absorbing: !connected,
-                child: LiteRollingSwitch(
-                  //initial value
-                  value: armed,
-                  textOn: 'Armed',
-                  textOff: 'Disarmed',
-
-                  colorOn: Colors.greenAccent[700],
-                  colorOff: Colors.redAccent[700],
-                  animationDuration: Duration(milliseconds: 100),
-                  iconOn: Icons.power_settings_new,
-                  iconOff: Icons.close,
-                  textSize: 16.0,
-                  onChanged: (bool state) {
-                    //Use it to manage the different states
-                    if (state == true) {
-                      sendMessage(requestStateDecoder['ARM']); //armed
-                    } else {
-                      sendMessage(requestStateDecoder['DISARM']); //disarmed
-                    }
-
-                    armed = state;
-                  },
-                ),
-              ),
-              SizedBox(
-                height: 10,
-              ),
-              AnimatedContainer(
-                decoration: BoxDecoration(
-                  color: (change == true)
-                      ? Colors.amber.withAlpha(0)
-                      : Colors.amber.withAlpha(255),
-                  border: Border.all(width: 1.0, color: Colors.black),
-                  borderRadius: BorderRadius.all(
-                      Radius.circular(5.0) //         <--- border radius here
-                      ),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(8.0),
-                  child: Text(currentState, style: TextStyle(fontSize: 20)),
-                ),
-                duration: Duration(milliseconds: 500),
-              ),
-            ]),
-          ),
-        ],
+        ),
       ),
     );
   }
-}
-
-class DronePose {
-  // DronePose(this.x, this.y, this.z);
-  static double x, y, z;
-}
-
-class GraphData {
-  GraphData(this.timestamp, this.value);
-
-  final dynamic timestamp;
-  final int value;
 }
