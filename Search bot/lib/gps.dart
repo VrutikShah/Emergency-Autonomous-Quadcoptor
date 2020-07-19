@@ -7,16 +7,16 @@ import 'package:location/location.dart';
 import 'bndbox.dart';
 import 'camera.dart';
 
-class ImageRec extends StatefulWidget {
+class CameraFeed extends StatefulWidget {
   final List<CameraDescription> cameras;
   final String model;
-  ImageRec(this.model, this.cameras);
+  CameraFeed(this.model, this.cameras);
 
   @override
-  _ImageRecState createState() => new _ImageRecState();
+  _CameraFeedState createState() => new _CameraFeedState();
 }
 
-class _ImageRecState extends State<ImageRec> {
+class _CameraFeedState extends State<CameraFeed> {
   List<dynamic> _recognitions;
   int _imageHeight = 0;
   int _imageWidth = 0;

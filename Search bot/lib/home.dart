@@ -6,6 +6,7 @@ import 'package:tflite/tflite.dart';
 import 'gps.dart';
 import 'main.dart';
 import 'models.dart';
+import 'mqtt/mqtt_ui_page.dart';
 
 class HomePage extends StatefulWidget {
   final List<CameraDescription> cameras;
@@ -25,20 +26,18 @@ class _HomePageState extends State<HomePage> {
   }
 
   loadModel() async {
-    String res;
     switch (_model) {
       case yolo:
-        res = await Tflite.loadModel(
+        await Tflite.loadModel(
           model: "assets/yolov2_tiny.tflite",
           labels: "assets/yolov2_tiny.txt",
         );
         break;
       default:
-        res = await Tflite.loadModel(
+        await Tflite.loadModel(
             model: "assets/ssd_mobilenet.tflite",
             labels: "assets/ssd_mobilenet.txt");
     }
-    // print(res);
   }
 
   onSelect(model) {
@@ -47,7 +46,7 @@ class _HomePageState extends State<HomePage> {
     });
     loadModel();
     Navigator.push(context,
-        MaterialPageRoute(builder: (context) => ImageRec(_model, cameras)));
+        MaterialPageRoute(builder: (context) => CameraFeed(_model, cameras)));
   }
 
   @override
@@ -69,6 +68,10 @@ class _HomePageState extends State<HomePage> {
               child: const Text("GPS"),
               onPressed: () => Navigator.push(context,
                   MaterialPageRoute(builder: (context) => GetGPScoordi()))),
+          RaisedButton(
+              child: const Text("MQTT"),
+              onPressed: () => Navigator.push(context,
+                  MaterialPageRoute(builder: (context) => MqttPage()))),
         ],
       ),
     ));
