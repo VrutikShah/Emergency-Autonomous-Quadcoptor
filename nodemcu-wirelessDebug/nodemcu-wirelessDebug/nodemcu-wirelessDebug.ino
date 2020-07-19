@@ -88,28 +88,11 @@ void loop() {
 }
 void flagExecute() {
   if (flag == 2) {
-    if (datapayload[0] == 't' && datapayload[1] == '0') {
-      // t0;1500;1493;1300;1599;
-      char *value[5];
-      char *ptr = strtok(datapayload, ";");  // remove t0 stuff
-      ptr = strtok(NULL, ";"); // roll
-      analogWrite(rollPin, atoi(ptr));
-      ptr = strtok(NULL,  ";"); // roll
-      analogWrite(pitchPin, atoi(ptr));
-      ptr = strtok(NULL, ";"); // roll
-      analogWrite(yawPin, atoi(ptr));
-      ptr = strtok(NULL, ";"); // roll
-      analogWrite(throttlePin, atoi(ptr));
-      return;
-    }
+
     received = "";
     i = 1;
     bytesSent = SUART.write(datapayload, 30);
-    //    Serial.printf("[%u] get Text: %s\r\n", number, datapayload);
-    //    Serial.print( bytesSent);
-    //    Serial.print(" (");
-    //    Serial.write(datapayload, 30);
-    //    Serial.println(") bytes were sent to stm32");
+
     flag = 0;
   }
 }

@@ -1,9 +1,12 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:quaddebugger/3dobj.dart';
 import 'package:quaddebugger/constants.dart';
 import 'package:quaddebugger/joypad.dart';
 import 'package:quaddebugger/widgets/arming.dart';
+import 'package:quaddebugger/widgets/graph.dart';
 import 'package:quaddebugger/widgets/label.dart';
 
 class JoyStick extends StatefulWidget {
@@ -41,32 +44,56 @@ class _JoyStickState extends State<JoyStick> {
   }
 
 //roll pitch yaw throttle
-  List<int> setpoints = [0, 0, 0, 0];
-  List<int> prevSetpoints = [0, 0, 0, 0];
+  List<double> setpoints = [0, 0, 0, 0];
+  List<double> prevSetpoints = [30, 0, 0, 0];
+  void sendSetpoints() {
+    double delta = 0;
+    
+    for (int i = 0; i < 4; i++) {
+      delta += (setpoints[i] - prevSetpoints[i])*(setpoints[i] - prevSetpoints[i]);
+    }
+    delta = sqrt(delta);
+    if(setpoints == [0,0,0,0]){
+      print("END");
+      delta = 100;
+    }
+    if (delta < 8) {
+      return;
+    }
+    // print(setpoints);
+    sendMessage('t7;${setpoints[0]};${setpoints[1]};${setpoints[2]};',
+        connected, channel);
+    for (int i = 0; i < 4; i++) {
+      prevSetpoints[i] = setpoints[i];
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    print("REBUILDING JOYSTICK");
     return Scaffold(
       extendBodyBehindAppBar: true,
-      appBar: AppBar(
-          title: StateLabel(labelState),
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-          centerTitle: true,
-          leading: IconButton(
-              icon: Icon(
-                Icons.arrow_back,
-                color: Colors.black,
-              ),
-              onPressed: () {
-                Navigator.pop(context);
-              })),
+      appBar: PreferredSize(
+        preferredSize: Size.fromHeight(50.0),
+        child: AppBar(
+            title: StateLabel(labelState),
+            backgroundColor: Colors.transparent,
+            elevation: 0,
+            centerTitle: true,
+            leading: IconButton(
+                icon: Icon(
+                  Icons.arrow_back,
+                  color: Colors.black,
+                ),
+                onPressed: () {
+                  Navigator.pop(context);
+                })),
+      ),
       body: Container(
         // color: Colors.grey,
         child: Center(
           child: Stack(
             children: <Widget>[
+              Positioned(right: 0, top: 100, child: GraphWidget()),
               Positioned(
                 left: MediaQuery.of(context).size.height / 2 + 60,
                 top: 30 + -setpoints[3] * 3.5,
@@ -102,11 +129,10 @@ class _JoyStickState extends State<JoyStick> {
                           color: Colors.blue,
                           onEnd: (data) {},
                           onUpdate: (data) {
-                            setpoints[2] = (-data.dx * 0.3).round();
-                            setpoints[3] = (data.dy * 0.2).round();
+                            setpoints[2] = (-data.dx * 0.3).round().toDouble();
+                            setpoints[3] = (data.dy * 0.2).round().toDouble();
                             setState(() {});
-                            print('t0;${setpoints[0]};${setpoints[1]};${setpoints[2]};${setpoints[3]};');
-                            sendMessage('t0;${setpoints[0]};${setpoints[1]};${setpoints[2]};${setpoints[3]};', connected, channel);
+                            sendSetpoints();
                           }),
                       Column(
                         children: <Widget>[
@@ -144,15 +170,15 @@ class _JoyStickState extends State<JoyStick> {
                           returnToCentre: true,
                           color: Colors.red,
                           onEnd: (data) {
-                            setpoints[0] = (data.dx * 0.3).round();
-                            setpoints[1] = (data.dy * 0.3).round();
+                            setpoints[0] = (data.dx * 0.3).round().toDouble();
+                            setpoints[1] = (data.dy * 0.3).round().toDouble();
+                            sendSetpoints();
                             setState(() {});
                           },
                           onUpdate: (data) {
-                            setpoints[0] = (data.dx * 0.3).round();
-                            setpoints[1] = (data.dy * 0.3).round();
-                            print('t0;${setpoints[0]};${setpoints[1]};${setpoints[2]};${setpoints[3]};');
-                            sendMessage('t0;${setpoints[0]};${setpoints[1]};${setpoints[2]};${setpoints[3]};', connected, channel);
+                            setpoints[0] = (data.dx * 0.3).round().toDouble();
+                            setpoints[1] = (data.dy * 0.3).round().toDouble();
+                            sendSetpoints();
                             setState(() {});
                           }),
                     ],

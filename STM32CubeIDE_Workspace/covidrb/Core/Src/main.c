@@ -86,10 +86,10 @@ void initMotors(void) {
 	HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_2);
 	HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_3);
 	HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_4);
-	escSet(TIM_CHANNEL_1, 500);
-	escSet(TIM_CHANNEL_2, 500);
-	escSet(TIM_CHANNEL_3, 500);
-	escSet(TIM_CHANNEL_4, 500);
+	escSet(TIM_CHANNEL_1, 1000);
+	escSet(TIM_CHANNEL_2, 1000);
+	escSet(TIM_CHANNEL_3, 1000);
+	escSet(TIM_CHANNEL_4, 1000);
 //	uint8_t debugData[] = MOTORS_INIT;
 //	HAL_UART_Transmit_DMA(&huart3, debugData, sizeof(debugData));
 //	uartTransmit(MOTORS_INIT);
@@ -124,24 +124,27 @@ void setMotorsAcro(void) {
 	}
 }
 void calibrateESC(void) {
-	initMotors();
 	HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_8);
-	escSet(TIM_CHANNEL_1, 2500);
-	escSet(TIM_CHANNEL_2, 2500);
-	escSet(TIM_CHANNEL_3, 2500);
-	escSet(TIM_CHANNEL_4, 2500);
+	HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
+	HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_2);
+	HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_3);
+	HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_4);
+	escSet(TIM_CHANNEL_1, 2000);
+	escSet(TIM_CHANNEL_2, 2000);
+	escSet(TIM_CHANNEL_3, 2000);
+	escSet(TIM_CHANNEL_4, 2000);
 	HAL_Delay(5000);
 	HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_8);
-	escSet(TIM_CHANNEL_1, 500);
-	escSet(TIM_CHANNEL_2, 500);
-	escSet(TIM_CHANNEL_3, 500);
-	escSet(TIM_CHANNEL_4, 500);
+	escSet(TIM_CHANNEL_1, 1000);
+	escSet(TIM_CHANNEL_2, 1000);
+	escSet(TIM_CHANNEL_3, 1000);
+	escSet(TIM_CHANNEL_4, 1000);
 	HAL_Delay(5000);
 	HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_8);
 	shutMotors();
 }
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
-
+n = n + 1;
 	if (receivedData[1] == ARM[0]) {
 		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_8, GPIO_PIN_RESET);
 		initIMU();

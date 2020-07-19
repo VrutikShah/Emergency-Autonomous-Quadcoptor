@@ -36,50 +36,76 @@ class _JoypadState extends State<Joypad> {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      height: (radiusBg + radiusFg) * 2,
-      width: (radiusBg + radiusFg) * 2,
-      child: Stack(
-        children: <Widget>[
-          Container(
-            child: Center(
-              child: CircleAvatar(
-                backgroundColor: widget.color.withAlpha(120),
-                minRadius: radiusBg,
-                maxRadius: radiusBg,
+    return GestureDetector(
+      onDoubleTap: onUp,
+      onTapDown: (details) => onDown(context, details),
+      child: Container(
+        height: (radiusBg + radiusFg) * 2,
+        width: (radiusBg + radiusFg) * 2,
+        child: Stack(
+          children: <Widget>[
+            Container(
+              child: Center(
+                child: CircleAvatar(
+                  backgroundColor: widget.color.withAlpha(120),
+                  minRadius: radiusBg,
+                  maxRadius: radiusBg,
+                ),
               ),
             ),
-          ),
-          Positioned(
-            top: position.dy,
-            left: position.dx,
-            child: GestureDetector(
-              onPanStart: (details) => _onPanStart(context, details),
-              onPanUpdate: (details) =>
-                  _onPanUpdate(context, details, position),
-              onPanEnd: (details) => _onPanEnd(context, details),
-              onPanCancel: () => _onPanCancel(context),
-              child: CircleAvatar(
-                minRadius: radiusFg,
-                maxRadius: radiusFg,
-                backgroundColor: widget.color.withAlpha(120),
-                // child: CircleAvatar(
-                //   minRadius: radiusFg*0.8,
-                //   maxRadius: radiusFg*0.8,
-                //   backgroundColor: widget.color.withAlpha(255)
-                // ),
+            Positioned(
+              top: position.dy,
+              left: position.dx,
+              child: GestureDetector(
+                onPanStart: (details) => _onPanStart(context, details),
+                onPanUpdate: (details) =>
+                    _onPanUpdate(context, details, position),
+                onPanEnd: (details) => _onPanEnd(context, details),
+                onPanCancel: () => _onPanCancel(context),
+                child: CircleAvatar(
+                  minRadius: radiusFg,
+                  maxRadius: radiusFg,
+                  backgroundColor: widget.color.withAlpha(120),
+                  // child: CircleAvatar(
+                  //   minRadius: radiusFg*0.8,
+                  //   maxRadius: radiusFg*0.8,
+                  //   backgroundColor: widget.color.withAlpha(255)
+                  // ),
+                ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 
   void _onPanStart(BuildContext context, DragStartDetails details) {}
+  void onDown(BuildContext context, TapDownDetails details) {
+    var x = details.localPosition.dx - radiusFg;
+    var y = details.localPosition.dy - radiusFg;
+    if ((x - radiusBg) * (x - radiusBg) + (y - radiusBg) * (y - radiusBg) <
+        radiusBg * radiusBg) {
+      position = Offset(x, y);
+      setState(() {});
+      widget.onUpdate(Offset(
+          (x - radiusBg) * 100 / radiusBg, (-y + radiusBg) * 100 / radiusBg));
+    }
+  }
+
+  void onUp() {
+    setState(() {
+      if (widget.returnToCentre) {
+        position = Offset(radiusBg, radiusBg);
+        widget.onEnd(Offset((position.dx - radiusBg) * 100 / radiusBg,
+            (-position.dx + radiusBg) * 100 / radiusBg));
+      }
+    });
+  }
 
   void _onPanUpdate(
       BuildContext context, DragUpdateDetails details, Offset offset) {
+
     var x = position.dx + details.delta.dx;
     var y = position.dy + details.delta.dy;
     if ((x - radiusBg) * (x - radiusBg) + (y - radiusBg) * (y - radiusBg) <

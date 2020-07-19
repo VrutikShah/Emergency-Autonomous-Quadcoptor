@@ -2,6 +2,8 @@ import 'dart:math';
 import 'package:quaddebugger/constants.dart';
 import 'package:quaddebugger/joystick.dart';
 import 'package:quaddebugger/widgets/arming.dart';
+import 'package:quaddebugger/widgets/console.dart';
+import 'package:quaddebugger/widgets/graph.dart';
 import 'package:quaddebugger/widgets/label.dart';
 import 'package:sensors/sensors.dart';
 import 'package:flutter/material.dart';
@@ -34,12 +36,12 @@ class _MyHomePageState extends State<MyHomePage> {
   String currentState = "NETWORK_DISCONNECTED";
   TextEditingController _controller =
       TextEditingController(text: "192.168.4.1:81");
-  
+
   void getSettings() async {
     SharedPreferences s = await SharedPreferences.getInstance();
     pidGainsText = s.getString('pidGains');
     pids = pidGainsText.split(';');
-    
+
     trimText = s.getString('trimText');
     print('GETTING FROM MEMORY: ${pids} and ${trimText}');
 
@@ -64,7 +66,7 @@ class _MyHomePageState extends State<MyHomePage> {
     rebuildCallback = () {
       setState(() {});
     };
-    
+
     getSettings();
     DronePose.x = 0;
     DronePose.y = 0;
@@ -353,7 +355,6 @@ class _MyHomePageState extends State<MyHomePage> {
         consoleOut += message;
         stringList = consoleOut.split('\n');
         stringList = consoleOut.split('\n');
-        print(message);
         // joystickKey.currentState.showSnackBar(SnackBar(content: Text(consoleOut),));
         rebuild();
         if (stringList.length >= 20) {
@@ -367,7 +368,6 @@ class _MyHomePageState extends State<MyHomePage> {
           currentState = stateDecoder[message.substring(0, 2)];
           change = !change;
 
-          print(currentState);
           if (currentState == "DISARMED") {
             armed = false;
           }
@@ -467,7 +467,6 @@ class _MyHomePageState extends State<MyHomePage> {
 
   @override
   Widget build(BuildContext context) {
-    print("REBUILDING HOME");
     return SafeArea(
       child: Scaffold(
         key: key,
@@ -582,13 +581,10 @@ class _MyHomePageState extends State<MyHomePage> {
                         ),
                       ],
                     )),
-
               ),
             ];
           },
           body: SingleChildScrollView(
-            // height: 1000,
-            // color:Colors.black,
             child: Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.start,
@@ -695,120 +691,10 @@ class _MyHomePageState extends State<MyHomePage> {
                           SizedBox(
                             height: 10,
                           ),
-                          Container(
-                            child: SfCartesianChart(
-                              primaryXAxis: NumericAxis(),
-                              // primaryXAxis: DateTimeAxis(),
-                              tooltipBehavior: TooltipBehavior(enable: true),
-                              legend: Legend(
-                                isVisible: true,
-                                position: LegendPosition.bottom,
-                              ),
-                              series: <LineSeries<GraphData, dynamic>>[
-                                LineSeries<GraphData, dynamic>(
-                                    dataSource: motor1,
-                                    xValueMapper: (GraphData sales, _) =>
-                                        sales.timestamp,
-                                    yValueMapper: (GraphData sales, _) {
-                                      // print(sales.value);
-                                      return sales.value;
-                                    },
-                                    // Enable data label
-                                    legendItemText: "Motor 1",
-                                    animationDuration: 0,
-                                    dataLabelSettings:
-                                        DataLabelSettings(isVisible: false)),
-                                LineSeries<GraphData, dynamic>(
-                                    dataSource: motor2,
-                                    xValueMapper: (GraphData sales, _) =>
-                                        sales.timestamp,
-                                    yValueMapper: (GraphData sales, _) =>
-                                        sales.value.toInt(),
-                                    // Enable data label
-                                    legendItemText: "Motor 2",
-                                    animationDuration: 0,
-                                    dataLabelSettings:
-                                        DataLabelSettings(isVisible: false)),
-                                LineSeries<GraphData, dynamic>(
-                                    dataSource: motor3,
-                                    xValueMapper: (GraphData sales, _) =>
-                                        sales.timestamp,
-                                    yValueMapper: (GraphData sales, _) =>
-                                        sales.value.toInt(),
-                                    // Enable data label
-                                    legendItemText: "Motor 3",
-                                    animationDuration: 0,
-                                    dataLabelSettings:
-                                        DataLabelSettings(isVisible: false)),
-                                LineSeries<GraphData, dynamic>(
-                                    dataSource: motor4,
-                                    xValueMapper: (GraphData sales, _) =>
-                                        sales.timestamp,
-                                    yValueMapper: (GraphData sales, _) =>
-                                        sales.value.toInt(),
-                                    // Enable data label
-                                    legendItemText: "Motor 4",
-                                    animationDuration: 0,
-                                    dataLabelSettings:
-                                        DataLabelSettings(isVisible: false))
-                              ],
-                            ),
-                          ),
-                          RaisedButton(
-                              onPressed: () {
-                                motor4 = [GraphData(0, 0)];
-                                motor1 = [GraphData(0, 0)];
-                                motor2 = [GraphData(0, 0)];
-                                motor3 = [GraphData(0, 0)];
-                                i = 0;
-                                setState(() {});
-                              },
-                              child: Text("Clear graph")),
+                          GraphWidget(),
                         ],
                       ),
-                      Column(
-                        children: <Widget>[
-                          Center(
-                            child: Container(
-                                child: Text(
-                              "Console Output",
-                              style: TextStyle(
-                                  fontSize: 16, fontWeight: FontWeight.bold),
-                              textAlign: TextAlign.left,
-                            )),
-                          ),
-                          SizedBox(
-                            height: 10,
-                          ),
-                          Padding(
-                            padding:
-                                const EdgeInsets.fromLTRB(16.0, 0, 16.0, 16.0),
-                            child: Container(
-                                // color: Colors.grey,
-                                width: MediaQuery.of(context).size.width,
-                                height:
-                                    MediaQuery.of(context).size.height * 0.4,
-                                decoration: BoxDecoration(
-                                  border: Border.all(
-                                      width: 2.0, color: Colors.purple),
-                                  borderRadius: BorderRadius.all(
-                                      Radius.circular(
-                                          5.0) //         <--- border radius here
-                                      ),
-                                ),
-                                child: Padding(
-                                  padding: const EdgeInsets.all(16.0),
-                                  child: Text(consoleOut),
-                                )),
-                          ),
-                          RaisedButton(
-                              onPressed: () {
-                                consoleOut = "";
-                                setState(() {});
-                              },
-                              child: Text("Clear console")),
-                        ],
-                      ),
+                      Consolewidget(),
                       Column(
                         children: <Widget>[
                           Text(
@@ -840,8 +726,6 @@ class _MyHomePageState extends State<MyHomePage> {
                       ),
                     ]),
                   ),
-                  // ArmingWidget(),
-                  // AngleTrack(channel, connected),
                 ],
               ),
             ),
